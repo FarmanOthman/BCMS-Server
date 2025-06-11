@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
@@ -35,4 +34,9 @@ return [
         ],
     ],
 
+    'supabase' => [
+        'url' => env('SUPABASE_URL'),
+        'api_key' => env('SUPABASE_KEY'), // Public API key
+        'admin_api_key' => env('SUPABASE_SERVICE_ROLE_KEY'), // Service role key for admin actions
+    ],
 ];
