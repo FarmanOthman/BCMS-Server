@@ -15,6 +15,9 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         // \App\\Http\\Middleware\\TrustHosts::class, // Example if you have it
+        // Consider adding global middleware like TrustProxies if behind a load balancer
+        // \Illuminate\Http\Middleware\TrustProxies::class => null, // Example
+        // \Illuminate\Http\Middleware\HandleCors::class, // If you need CORS for your desktop app
     ];
 
     /**
@@ -23,19 +26,20 @@ class Kernel extends HttpKernel
      * @var array<string, array<int, class-string|string>>
      */
     protected $middlewareGroups = [
-        'web' => [ // Corrected escaping
-            \Illuminate\Cookie\Middleware\EncryptCookies::class,
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-            \Illuminate\Session\Middleware\StartSession::class,
-            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-        ],
+        // 'web' => [ // Web group not needed for a pure API for a desktop app
+        //     \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        //     \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        //     \Illuminate\Session\Middleware\StartSession::class,
+        //     \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        //     \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+        //     \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        // ],
 
-        'api' => [ // Corrected escaping
-            // \\Laravel\\Sanctum\\Http\\Middleware\\EnsureFrontendRequestsAreStateful::class, // If using SPA
+        'api' => [
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            // Consider adding CORS middleware here if needed globally for API
+            // \App\\Http\\Middleware\\Cors::class, // Example if you have a custom one or use a package
         ],
     ];
 
@@ -47,15 +51,15 @@ class Kernel extends HttpKernel
      * @var array<string, class-string|string>
      */
     protected $middlewareAliases = [
-        'auth' => \Illuminate\Auth\Middleware\Authenticate::class, // Corrected escaping
+        'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
-        'guest' => \Illuminate\Auth\Middleware\RedirectIfAuthenticated::class,
+        // 'guest' => \Illuminate\Auth\Middleware\RedirectIfAuthenticated::class, // Typically for web
         'precognitive' => \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
         'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
-        'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
-        // 'role.user' => \\App\\Http\\Middleware\\EnsureUserHasRole::class, // Correctly commented out as it's in bootstrap/app.php
+        // 'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class, // Supabase handles verification
+        // role.user and role.manager are defined in bootstrap/app.php, so they are fine here
     ];
 }

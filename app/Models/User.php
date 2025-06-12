@@ -5,18 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasFactory, Notifiable;
 
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'Users'; // Explicitly set table name to match Supabase
+    protected $table = 'users'; // Changed to lowercase 'users' for consistency with migrations and PostgreSQL
 
     /**
      * The primary key for the model.
@@ -59,7 +58,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         // 'password',
-        'remember_token',
+        // 'remember_token', // Confirmed unnecessary if not using web remember me
     ];
 
     /**
@@ -70,8 +69,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            // 'password' => 'hashed', // Not applicable if password not stored here
+            // 'email_verified_at' => 'datetime', // Consider if needed from Supabase sync
             'id' => 'string', // Important: Treat Supabase UUID as string
         ];
     }
