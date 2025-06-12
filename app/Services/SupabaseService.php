@@ -41,7 +41,9 @@ class SupabaseService
                 'email' => $email,
                 'password' => $password,
                 'email_confirm' => true, // Auto-confirm email for simplicity, adjust as needed
-                // You can add other user_metadata or app_metadata here if needed
+                'app_metadata' => [ // Add role to app_metadata
+                    'role' => $role
+                ]
             ]);
 
             if (!$response->successful()) {
@@ -56,12 +58,12 @@ class SupabaseService
             $userId = $supabaseUser['id'];
 
             // Step 2: Insert user details into the public Users table
-            // Ensure your User model is set up to use the Supabase connection if it's different
-            // For simplicity, using DB facade here. Adjust if you have a User model for the public.Users table.
+            // The role stored here can serve as a fallback or for admin display,
+            // but for request authorization, we'll prioritize the token's app_metadata.
             DB::table('Users')->insert([
-                'id' => $userId, // Use the ID from Supabase Auth
+                'id' => $userId,
                 'name' => $name,
-                'role' => $role,
+                'role' => $role, // Still store it locally
                 'created_at' => now(),
             ]);
 
@@ -197,19 +199,47 @@ class SupabaseService
             if ($response->successful()) {
                 $supabaseUser = $response->json();
                 $userId = $supabaseUser['id'];
+                
+                // Prioritize role from token\'s app_metadata
+                $roleFromToken = $supabaseUser['app_metadata']['role'] ?? null;
 
                 // Fetch additional details from the public Users table
-                $appUser = DB::table('Users')->where('id', $userId)->first();
+                // This part might involve your User model or DB query
+                // For example, if you use the User model:
+                // $user = \\App\\Models\\User::find($userId);
+                // if ($user && $roleFromToken) {
+                //     $user->role = $roleFromToken; // Override local role with token role for this request context
+                // }
+                // return $user ? $user->toArray() : $supabaseUser; // Or return the User model instance
 
-                if ($appUser) {
-                    // Combine auth user data with public Users table data
-                    return array_merge($supabaseUser, (array)$appUser);
+                // For now, let\'s assume we augment the $supabaseUser array with a consistent role
+                // and your auth guard will build a User model from this.
+                // If a local user record is found, you might merge data.
+                // The key is that the role used by Auth::user() should come from $roleFromToken.
+
+                $localUser = DB::table('Users')->where('id', $userId)->first();
+
+                $userData = $supabaseUser; // Start with Supabase user data
+
+                if ($localUser) {
+                    // Merge or use local data as needed, but prioritize token role for authorization
+                    $userData['name'] = $localUser->name; // Example: get name from local DB
+                    // Other fields from $localUser can be merged here.
                 }
-                Log::warning('Supabase user found in auth.users but not in public.Users table', ['userId' => $userId]);
-                return $supabaseUser; // Return auth user data if not found in public.Users
+                
+                // Ensure the role from the token is what\'s used
+                if ($roleFromToken) {
+                    $userData['role'] = $roleFromToken;
+                } elseif ($localUser) {
+                    $userData['role'] = $localUser->role; // Fallback to local DB role if not in token
+                } else {
+                    $userData['role'] = null; // Or a default role
+                }
+                
+                return $userData; // This array should be used to construct the User model by your auth guard
             }
 
-            Log::error('Failed to get user by access token', [
+            Log::warning('Supabase getUserByAccessToken failed.', [
                 'status' => $response->status(),
                 'response' => $response->body(),
             ]);

@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 
 Route::prefix('bcms')->group(function () {
     // Routes requiring authentication and role check (e.g., for user management by a Manager)
-    Route::middleware(['auth:sanctum', 'role.user'])->group(function () {
+    Route::middleware(['auth:api', 'role.manager'])->group(function () { // Changed auth:sanctum to auth:api and role.user to role.manager
         Route::post('/users', [UserController::class, 'createUser'])
             ->can('create', App\Models\User::class); // Policy/Gate check
 
