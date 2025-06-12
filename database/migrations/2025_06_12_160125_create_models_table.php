@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('name');
             $table->timestamps();
 
-            $table->unique(['make_id', 'name']); // A model name should be unique per make
         });
     }
 
