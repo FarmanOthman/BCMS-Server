@@ -25,7 +25,7 @@ class EnsureUserHasRole
         if ($laravelUser instanceof User && !$laravelUser->role) {
             // Fetch additional user data from the 'Users' table in Supabase public schema
             // $laravelUser->id should be the Supabase UUID from the JWT's sub claim
-            $supabasePublicUserData = DB::table('Users')->where('id', $laravelUser->id)->first();
+            $supabasePublicUserData = DB::table('users')->where('id', $laravelUser->id)->first();
 
             if ($supabasePublicUserData) {
                 // Populate the Laravel User model instance with data from the 'Users' table

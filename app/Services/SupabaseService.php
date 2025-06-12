@@ -60,14 +60,16 @@ class SupabaseService
             // Step 2: Insert user details into the public Users table
             // The role stored here can serve as a fallback or for admin display,
             // but for request authorization, we'll prioritize the token's app_metadata.
-            DB::table('Users')->insert([
+            DB::table('users')->insert([ // Changed 'Users' to 'users'
                 'id' => $userId,
                 'name' => $name,
+                'email' => $email, // Added email to be stored locally
                 'role' => $role, // Still store it locally
                 'created_at' => now(),
+                'updated_at' => now(), // Added updated_at
             ]);
 
-            Log::info('Supabase user and public Users record created successfully for email: ' . $email, ['userId' => $userId]);
+            Log::info('Supabase user and public users record created successfully for email: ' . $email, ['userId' => $userId]);
 
             // Return the user data from Supabase Auth (excluding sensitive info like password)
             unset($supabaseUser['recovery_token'], $supabaseUser['confirmation_token']); // Example of removing sensitive data
@@ -94,6 +96,7 @@ class SupabaseService
         try {
             $response = Http::withHeaders([
                 'apikey' => $this->supabaseApiKey, // Use the public anon key
+                'Authorization' => 'Bearer ' . $this->supabaseApiKey, // Required for Supabase Auth endpoints
                 'Content-Type' => 'application/json',
             ])->post($this->supabaseUrl . '/auth/v1/token?grant_type=password', [
                 'email' => $email,
@@ -128,6 +131,7 @@ class SupabaseService
         try {
             $response = Http::withHeaders([
                 'apikey' => $this->supabaseApiKey,
+                'Authorization' => 'Bearer ' . $this->supabaseApiKey, // Required for Supabase Auth endpoints
                 'Content-Type' => 'application/json',
             ])->post($this->supabaseUrl . '/auth/v1/token?grant_type=refresh_token', [
                 'refresh_token' => $refreshToken,
@@ -200,24 +204,24 @@ class SupabaseService
                 $supabaseUser = $response->json();
                 $userId = $supabaseUser['id'];
                 
-                // Prioritize role from token\'s app_metadata
+                // Prioritize role from token\\\'s app_metadata
                 $roleFromToken = $supabaseUser['app_metadata']['role'] ?? null;
 
                 // Fetch additional details from the public Users table
                 // This part might involve your User model or DB query
                 // For example, if you use the User model:
-                // $user = \\App\\Models\\User::find($userId);
+                // $user = \\\\App\\\\Models\\\\User::find($userId);
                 // if ($user && $roleFromToken) {
                 //     $user->role = $roleFromToken; // Override local role with token role for this request context
                 // }
                 // return $user ? $user->toArray() : $supabaseUser; // Or return the User model instance
 
-                // For now, let\'s assume we augment the $supabaseUser array with a consistent role
+                // For now, let\\\'s assume we augment the $supabaseUser array with a consistent role
                 // and your auth guard will build a User model from this.
                 // If a local user record is found, you might merge data.
                 // The key is that the role used by Auth::user() should come from $roleFromToken.
 
-                $localUser = DB::table('Users')->where('id', $userId)->first();
+                $localUser = DB::table('users')->where('id', $userId)->first(); // Changed 'Users' to 'users'
 
                 $userData = $supabaseUser; // Start with Supabase user data
 
@@ -227,7 +231,7 @@ class SupabaseService
                     // Other fields from $localUser can be merged here.
                 }
                 
-                // Ensure the role from the token is what\'s used
+                // Ensure the role from the token is what\\\'s used
                 if ($roleFromToken) {
                     $userData['role'] = $roleFromToken;
                 } elseif ($localUser) {

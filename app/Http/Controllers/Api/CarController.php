@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\Car; // Added Car model
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log; // Added Log facade
-use Illuminate\Support\Str; // Added Str facade
+use Illuminate\Support\Facades\Log;
 
 class CarController extends Controller
 {
@@ -21,8 +20,6 @@ class CarController extends Controller
         $limit = max(1, (int)$limit);
         $page  = max(1, (int)$page);
 
-        $offset = ($page - 1) * $limit;
-
         // Define the cache key based on request parameters
         $cacheKey = "cars:page:{$page}:limit:{$limit}";
         Log::info("Attempting to retrieve from cache with key: {$cacheKey}");
@@ -32,18 +29,22 @@ class CarController extends Controller
         $isCacheHit = true; // Assume cache hit initially
 
         // Retrieve data from cache or database
-        $data = Cache::remember($cacheKey, $cacheDuration, function () use ($offset, $limit, $cacheKey, &$isCacheHit) {
+        $data = Cache::remember($cacheKey, $cacheDuration, function () use ($limit, $page, $cacheKey, &$isCacheHit) {
             Log::info("Cache miss for key: {$cacheKey}. Fetching from database.");
             $isCacheHit = false; // Set to false if closure is executed
-            $cars = DB::table('car')
-                ->select('id', 'make', 'model', 'year', 'price', 'status', 'vin', 'metadata')
-                ->orderByDesc('created_at')
-                ->offset($offset)
-                ->limit($limit)
-                ->get();
             
-            $total = DB::table('car')->count();
-            Log::info("Data fetched from database. Total records: {$total}");
+            // Use Eloquent for querying with relationships
+            $carsQuery = Car::with(['make', 'model']);
+
+            $total = $carsQuery->count();
+            Log::info("Total records before pagination: {$total}");
+
+            $cars = $carsQuery->orderByDesc('created_at')
+                              ->skip(($page - 1) * $limit)
+                              ->take($limit)
+                              ->get();
+            
+            Log::info("Data fetched from database. Cars count: " . $cars->count());
 
             return [
                 'cars' => $cars,
