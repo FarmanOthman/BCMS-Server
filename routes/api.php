@@ -1,8 +1,10 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CarController; // Added import
 
 Route::prefix('bcms')->group(function () {
     // Routes requiring authentication and role check (e.g., for user management by a Manager)
@@ -23,3 +25,6 @@ Route::prefix('bcms')->group(function () {
 
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
 });
+
+// Public endpoint for listing cars
+Route::get('BCMS/cars', [CarController::class, 'index']);
