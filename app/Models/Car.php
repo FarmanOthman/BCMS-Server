@@ -19,8 +19,32 @@ class Car extends Model
     protected $fillable = [
         'make_id',
         'model_id',
-        // Add other car attributes here that are fillable
-        // e.g., 'year', 'color', 'vin', etc.
+        'year',
+        'base_price',
+        'sold_price',
+        'transition_cost',
+        'status',
+        'vin',
+        'metadata',
+        'repair_costs',
+        'created_by', // Assuming these are set programmatically
+        'updated_by', // Assuming these are set programmatically
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'year' => 'integer',
+        'base_price' => 'decimal:2',
+        'sold_price' => 'decimal:2',
+        'transition_cost' => 'decimal:2',
+        'metadata' => 'array', // Changed from json to array for easier handling in Laravel
+        'repair_costs' => 'array', // Changed from json to array
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
@@ -37,5 +61,21 @@ class Car extends Model
     public function model(): BelongsTo
     {
         return $this->belongsTo(Model::class);
+    }
+
+    /**
+     * Get the user who created the car.
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the user who last updated the car.
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }
