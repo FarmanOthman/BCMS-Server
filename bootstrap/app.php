@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
+            'role' => \App\Http\Middleware\CheckRole::class, // Ensure base role alias is registered
             'role.user' => \App\Http\Middleware\EnsureUserHasRole::class,
             'role.manager' => \App\Http\Middleware\EnsureUserHasManagerRole::class,
         ]);

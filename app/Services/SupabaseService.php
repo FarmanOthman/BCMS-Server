@@ -55,18 +55,16 @@ class SupabaseService
             }
 
             $supabaseUser = $response->json();
-            $userId = $supabaseUser['id'];
-
-            // Step 2: Insert user details into the public Users table
-            // The role stored here can serve as a fallback or for admin display,
-            // but for request authorization, we'll prioritize the token's app_metadata.
-            DB::table('users')->insert([ // Changed 'Users' to 'users'
+            $userId = $supabaseUser['id'];            // Step 2: Insert user details into the public Users table
+            DB::table('users')->insert([
                 'id' => $userId,
                 'name' => $name,
-                'email' => $email, // Added email to be stored locally
-                'role' => $role, // Still store it locally
+                'email' => $email,
+                'role' => $role,
                 'created_at' => now(),
-                'updated_at' => now(), // Added updated_at
+                'updated_at' => now(),
+                'created_by' => null, 
+                'updated_by' => null,
             ]);
 
             Log::info('Supabase user and public users record created successfully for email: ' . $email, ['userId' => $userId]);
@@ -253,6 +251,114 @@ class SupabaseService
                 'message' => $e->getMessage(),
             ]);
             return null;
+        }
+    }
+
+    /**
+     * Update a user's email in Supabase Auth.
+     *
+     * @param string $userId
+     * @param string $newEmail
+     * @return bool
+     */
+    public function updateUserEmail(string $userId, string $newEmail): bool
+    {
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $this->supabaseAdminApiKey,
+                'Authorization' => 'Bearer ' . $this->supabaseAdminApiKey,
+                'Content-Type' => 'application/json',
+            ])->put($this->supabaseUrl . '/auth/v1/admin/users/' . $userId, [
+                'email' => $newEmail,
+                'email_confirm' => true
+            ]);
+
+            if ($response->successful()) {
+                Log::info('User email updated in Supabase Auth: ' . $userId);
+                return true;
+            }
+
+            Log::error('Failed to update user email in Supabase Auth: ' . $userId, [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            return false;
+        } catch (Throwable $e) {
+            Log::error('Error updating user email in Supabase Auth: ' . $userId, [
+                'message' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Update a user's role in Supabase Auth metadata.
+     *
+     * @param string $userId
+     * @param string $newRole
+     * @return bool
+     */
+    public function updateUserRole(string $userId, string $newRole): bool
+    {
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $this->supabaseAdminApiKey,
+                'Authorization' => 'Bearer ' . $this->supabaseAdminApiKey,
+                'Content-Type' => 'application/json',
+            ])->put($this->supabaseUrl . '/auth/v1/admin/users/' . $userId, [
+                'app_metadata' => [
+                    'role' => $newRole
+                ]
+            ]);
+
+            if ($response->successful()) {
+                Log::info('User role updated in Supabase Auth: ' . $userId);
+                return true;
+            }
+
+            Log::error('Failed to update user role in Supabase Auth: ' . $userId, [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            return false;
+        } catch (Throwable $e) {
+            Log::error('Error updating user role in Supabase Auth: ' . $userId, [
+                'message' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Delete a user from Supabase Auth.
+     *
+     * @param string $userId
+     * @return bool
+     */
+    public function deleteUser(string $userId): bool
+    {
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $this->supabaseAdminApiKey,
+                'Authorization' => 'Bearer ' . $this->supabaseAdminApiKey,
+                'Content-Type' => 'application/json',
+            ])->delete($this->supabaseUrl . '/auth/v1/admin/users/' . $userId);
+
+            if ($response->successful()) {
+                Log::info('User deleted from Supabase Auth: ' . $userId);
+                return true;
+            }
+
+            Log::error('Failed to delete user from Supabase Auth: ' . $userId, [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            return false;
+        } catch (Throwable $e) {
+            Log::error('Error deleting user from Supabase Auth: ' . $userId, [
+                'message' => $e->getMessage(),
+            ]);
+            return false;
         }
     }
 }

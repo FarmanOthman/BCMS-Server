@@ -8,6 +8,7 @@ use App\Services\SupabaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception; // Import base Exception class
 
@@ -117,5 +118,143 @@ class UserController extends Controller
         }
 
         return response()->json(['message' => 'Could not retrieve user from Supabase.'], 404);
+    }
+
+    /**
+     * Display a listing of all users.
+     *
+     * @return JsonResponse
+     */
+    public function index(): JsonResponse
+    {
+        try {
+            // Get all users from the database
+            $users = DB::table('users')->get();
+            
+            return response()->json(['users' => $users]);
+        } catch (Exception $e) {
+            Log::error('Error fetching users: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retrieve users.'], 500);
+        }
+    }
+
+    /**
+     * Display the specified user.
+     *
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function show(string $id): JsonResponse
+    {
+        try {
+            // Get user from database by ID
+            $user = DB::table('users')->where('id', $id)->first();
+            
+            if (!$user) {
+                return response()->json(['message' => 'User not found.'], 404);
+            }
+            
+            return response()->json(['user' => $user]);
+        } catch (Exception $e) {
+            Log::error('Error fetching user: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retrieve user.'], 500);
+        }
+    }
+
+    /**
+     * Update the specified user.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        try {
+            // Validate the request
+            $validatedData = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'email' => 'sometimes|email|max:255',
+                'role' => 'sometimes|string|in:Manager,User',
+            ]);
+
+            // Get the user
+            $user = DB::table('users')->where('id', $id)->first();
+            
+            if (!$user) {
+                return response()->json(['message' => 'User not found.'], 404);
+            }
+            
+            // Update in Supabase Auth if email or role is being changed
+            $supabaseUpdated = true;
+            if (isset($validatedData['email']) && $validatedData['email'] !== $user->email) {
+                // Update user in Supabase Auth
+                $supabaseUpdated = $this->supabaseService->updateUserEmail($id, $validatedData['email']);
+            }
+            
+            if (isset($validatedData['role']) && $validatedData['role'] !== $user->role) {
+                $supabaseUpdated = $this->supabaseService->updateUserRole($id, $validatedData['role']);
+            }
+            
+            if (!$supabaseUpdated) {
+                return response()->json(['message' => 'Failed to update user in Supabase.'], 500);
+            }
+            
+            // Update the user in the local database
+            $updated = DB::table('users')
+                ->where('id', $id)
+                ->update([
+                    'name' => $validatedData['name'] ?? $user->name,
+                    'email' => $validatedData['email'] ?? $user->email,
+                    'role' => $validatedData['role'] ?? $user->role,
+                    'updated_at' => now(),
+                    'updated_by' => Auth::id()
+                ]);
+                
+            if ($updated) {
+                $updatedUser = DB::table('users')->where('id', $id)->first();
+                return response()->json([
+                    'message' => 'User updated successfully.',
+                    'user' => $updatedUser
+                ]);
+            }
+            
+            return response()->json(['message' => 'Failed to update user.'], 500);
+        } catch (Exception $e) {
+            Log::error('Error updating user: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to update user: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Remove the specified user.
+     *
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function destroy(string $id): JsonResponse
+    {
+        try {
+            // Check if user exists
+            $user = DB::table('users')->where('id', $id)->first();
+            
+            if (!$user) {
+                return response()->json(['message' => 'User not found.'], 404);
+            }
+            
+            // Delete user from Supabase Auth
+            $supabaseDeleted = $this->supabaseService->deleteUser($id);
+            if (!$supabaseDeleted) {
+                return response()->json(['message' => 'Failed to delete user from Supabase.'], 500);
+            }
+            
+            // The user record in the public.users table will be automatically deleted
+            // due to the ON DELETE CASCADE foreign key constraint
+            
+            return response()->json(['message' => 'User deleted successfully.']);
+        } catch (Exception $e) {
+            Log::error('Error deleting user: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to delete user: ' . $e->getMessage()], 500);
+        }
     }
 }

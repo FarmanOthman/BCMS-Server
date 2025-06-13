@@ -73,29 +73,26 @@ class AuthController extends Controller
 
     public function signOut(Request $request)
     {
-        // Supabase admin API is needed to invalidate all refresh tokens for a user or a specific session.
-        // The /auth/v1/logout endpoint only clears the cookie for Supabase-managed sessions.
-        // For API-based auth, true logout means the client discards the JWT.
-        // If you want to invalidate the access token on the server-side before it expires, 
-        // you'd need a more complex setup (e.g., token blocklist).
+        // Temporarily bypass all logic including Supabase calls
+        return response()->json(['message' => 'SignOut method reached cleanly (simplified).']);
+    }
 
-        // This example will use the Supabase admin endpoint to sign out the user from all sessions.
-        // This requires the user's Supabase ID, which you might not have directly here unless the token is passed.
-        // A simpler client-side logout is just discarding the token.
-        // For a more robust server-side initiated logout (e.g. admin revokes user session), you'd call Supabase admin API.
-
-        // Let's assume for now, the client is responsible for discarding the token.
-        // If you want to call Supabase's global signout for a user (requires user's access token):
-        $userAccessToken = $request->bearerToken();
-        if ($userAccessToken) {
-            $success = $this->supabase->signOutUser($userAccessToken);
-            if ($success) {
-                return response()->json(['message' => 'User signed out from Supabase session. Client should discard token.']);
-            }
-            return response()->json(['message' => 'Failed to sign out from Supabase session, or token already invalid. Client should discard token.'], 400);
-        }
+    public function getUser(Request $request)
+    {
+        $token = $request->bearerToken();
         
-        // If no token provided, it's essentially a client-side action.
-        return response()->json(['message' => 'Client should discard the token.']);
+        if (!$token) {
+            return response()->json(['error' => 'No token provided'], 401);
+        }
+
+        $user = $this->supabase->getUserByAccessToken($token);
+        
+        if (!$user) {
+            return response()->json(['error' => 'Invalid token or user not found'], 401);
+        }
+
+        return response()->json([
+            'user' => $user
+        ]);
     }
 }
