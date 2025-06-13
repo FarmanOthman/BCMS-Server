@@ -35,7 +35,7 @@ class SupabaseService
             // Step 1: Create user in Supabase Auth using Admin API
             $response = Http::withHeaders([
                 'apikey' => $this->supabaseAdminApiKey,
-                'Authorization' => 'Bearer ' . $this->supabaseAdminApiKey, // Supabase Admin API often uses the API key as Bearer token
+                'Authorization' => 'Bearer ' . $this->supabaseAdminApiKey,
                 'Content-Type' => 'application/json',
             ])->post($this->supabaseUrl . '/auth/v1/admin/users', [
                 'email' => $email,
@@ -47,27 +47,60 @@ class SupabaseService
             ]);
 
             if (!$response->successful()) {
-                Log::error('Supabase user creation failed for email: ' . $email, [
-                    'status' => $response->status(),
-                    'response' => $response->body(),
-                ]);
-                return null;
+                $errorBody = $response->json();
+                // Check if Supabase indicates the user already exists (status 422, error_code 'email_exists')
+                if ($response->status() == 422 && isset($errorBody['error_code']) && $errorBody['error_code'] === 'email_exists') {
+                    // User already exists in Supabase Auth, try to fetch their details to get the ID
+                    Log::info('User already registered in Supabase Auth (email_exists) for email: ' . $email . '. Attempting to fetch existing user ID.');
+                    $existingSupabaseUser = $this->getSupabaseUserByEmail($email);
+                    if (!$existingSupabaseUser || !isset($existingSupabaseUser['id'])) {
+                        Log::error('Supabase user already registered but failed to fetch their ID for email: ' . $email, [
+                            'status' => $response->status(), // This is the 422 status
+                            'response_body_from_initial_post' => $errorBody, // This is the {"code":422, ...} response
+                        ]);
+                        return null;
+                    }
+                    $supabaseUser = $existingSupabaseUser;
+                    Log::info('Successfully fetched existing Supabase user ID for email: ' . $email, ['userId' => $supabaseUser['id']]);
+                } else {
+                    Log::error('Supabase user creation/fetch failed for email: ' . $email, [
+                        'status' => $response->status(),
+                        'response' => $response->body(),
+                    ]);
+                    return null;
+                }
             }
+            else {
+                $supabaseUser = $response->json();
+            }
+            
+            $userId = $supabaseUser['id'];
 
-            $supabaseUser = $response->json();
-            $userId = $supabaseUser['id'];            // Step 2: Insert user details into the public Users table
-            DB::table('users')->insert([
-                'id' => $userId,
+            // Step 2: Insert or Update user details in the public Users table
+            $existingLocalUser = DB::table('users')->where('id', $userId)->first();
+
+            $userData = [
                 'name' => $name,
                 'email' => $email,
                 'role' => $role,
-                'created_at' => now(),
                 'updated_at' => now(),
-                'created_by' => null, 
-                'updated_by' => null,
-            ]);
+                // 'updated_by' => Auth::id(), // Or null if not applicable in this context
+            ];
 
-            Log::info('Supabase user and public users record created successfully for email: ' . $email, ['userId' => $userId]);
+            if ($existingLocalUser) {
+                // User with this ID already exists locally, update their details
+                DB::table('users')->where('id', $userId)->update($userData);
+                Log::info('Local user record updated for Supabase User ID: ' . $userId);
+            } else {
+                // User with this ID does not exist locally, insert new record
+                $userData['id'] = $userId;
+                $userData['created_at'] = now();
+                // $userData['created_by'] = Auth::id(); // Or null
+                DB::table('users')->insert($userData);
+                Log::info('Local user record created for Supabase User ID: ' . $userId);
+            }
+
+            Log::info('Supabase user processed and local users record created/updated successfully for email: ' . $email, ['userId' => $userId]);
 
             // Return the user data from Supabase Auth (excluding sensitive info like password)
             unset($supabaseUser['recovery_token'], $supabaseUser['confirmation_token']); // Example of removing sensitive data
@@ -77,6 +110,64 @@ class SupabaseService
             Log::error('Error during Supabase user creation process for email: ' . $email, [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(), // Be cautious with logging full traces in production
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Get a Supabase user by their email using the admin API.
+     *
+     * @param string $email
+     * @return array|null
+     */
+    public function getSupabaseUserByEmail(string $email): ?array
+    {
+        try {
+            // Note: Supabase admin API to list users might require pagination if you have many users.
+            // This example assumes a direct way to get a user by email or a small enough user set.
+            // The endpoint /auth/v1/admin/users can be filtered by email.
+            $response = Http::withHeaders([
+                'apikey' => $this->supabaseAdminApiKey,
+                'Authorization' => 'Bearer ' . $this->supabaseAdminApiKey,
+            ])->get($this->supabaseUrl . '/auth/v1/admin/users', [
+                // Supabase might use a different query parameter for filtering, e.g., 'email' or 'filter'
+                // Check Supabase documentation for listing/filtering users by email via Admin API.
+                // For this example, let's assume it might be a direct email filter or we iterate.
+                // A more robust way would be to use a specific filter if available.
+                // If not, you might have to list users and find by email, which is inefficient.
+                // For now, this is a placeholder for how you might get a user by email.
+                // This is a common endpoint pattern, but verify with Supabase docs.
+                // 'email' => $email // This is a guess, Supabase might not support direct email filter here.
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Failed to list/fetch Supabase users to find by email: ' . $email, [
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                ]);
+                return null;
+            }
+
+            $users = $response->json();
+            // Assuming the response is a list of users, find the one matching the email.
+            // Supabase might return users in an array under a key like 'users' or directly as an array.
+            $userList = $users['users'] ?? ($users[0] ?? null ? $users : null); // Handle different possible response structures
+
+            if ($userList) {
+                foreach ($userList as $user) {
+                    if (isset($user['email']) && $user['email'] === $email) {
+                        return $user;
+                    }
+                }
+            }
+            
+            Log::warning('Supabase user not found by email via admin API: ' . $email);
+            return null;
+
+        } catch (Throwable $e) {
+            Log::error('Error fetching Supabase user by email: ' . $email, [
+                'message' => $e->getMessage(),
             ]);
             return null;
         }
