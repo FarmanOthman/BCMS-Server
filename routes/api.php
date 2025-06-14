@@ -8,6 +8,9 @@ use App\Http\Controllers\Api\MakeController; // Corrected use statement
 use App\Http\Controllers\Api\ModelController; // Corrected use statement
 use App\Http\Controllers\Api\BuyerController; // Added BuyerController import
 use App\Http\Controllers\Api\SaleController; // Added SaleController import
+use App\Http\Controllers\Api\DailySalesReportController; // Added DailySalesReportController import
+use App\Http\Controllers\Api\MonthlySalesReportController; // Added MonthlySalesReportController import
+use App\Http\Controllers\Api\YearlySalesReportController; // Added YearlySalesReportController import
 
 Route::prefix('bcms')->group(function () {
     // Routes requiring authentication and manager role for user management
@@ -47,4 +50,9 @@ Route::prefix('bcms')->group(function () {
 
     // API resource for Sales, restricted to Managers
     Route::apiResource('/sales', SaleController::class)->middleware(['auth:api', 'role:Manager']);
+
+    // Report Routes - Restricted to Managers (or other appropriate roles)
+    Route::get('/reports/daily', [DailySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
+    Route::get('/reports/monthly', [MonthlySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
+    Route::get('/reports/yearly', [YearlySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
 });
