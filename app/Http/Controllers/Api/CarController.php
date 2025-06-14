@@ -104,6 +104,7 @@ class CarController extends Controller
             'model_id' => 'required|uuid|exists:models,id',
             'year' => 'required|integer|min:1900|max:2100',
             'base_price' => 'required|numeric|min:0',
+            'public_price' => 'required|numeric|gt:0', // Added public_price validation
             'sold_price' => 'nullable|numeric|min:0',
             'transition_cost' => 'nullable|numeric|min:0',
             'status' => ['nullable', Rule::in(['available', 'sold', 'pending', 'maintenance'])], // Assuming car_status enum/type has these values
@@ -178,6 +179,7 @@ class CarController extends Controller
             'model_id' => 'sometimes|required|uuid|exists:models,id',
             'year' => 'sometimes|required|integer|min:1900|max:2100',
             'base_price' => 'sometimes|required|numeric|min:0',
+            'public_price' => 'sometimes|required|numeric|gt:0', // Added public_price validation
             'sold_price' => 'nullable|numeric|min:0',
             'transition_cost' => 'nullable|numeric|min:0',
             'status' => ['nullable', Rule::in(['available', 'sold', 'pending', 'maintenance'])], // Assuming car_status enum/type

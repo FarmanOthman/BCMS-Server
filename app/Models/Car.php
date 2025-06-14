@@ -21,6 +21,7 @@ class Car extends Model
         'model_id',
         'year',
         'base_price',
+        'public_price', // Added public_price
         'sold_price',
         'transition_cost',
         'status',
@@ -39,6 +40,7 @@ class Car extends Model
     protected $casts = [
         'year' => 'integer',
         'base_price' => 'decimal:2',
+        'public_price' => 'decimal:2', // Added public_price cast
         'sold_price' => 'decimal:2',
         'transition_cost' => 'decimal:2',
         'metadata' => 'array', // Changed from json to array for easier handling in Laravel

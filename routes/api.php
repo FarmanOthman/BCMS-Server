@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CarController; // Added import
 use App\Http\Controllers\Api\MakeController; // Corrected use statement
 use App\Http\Controllers\Api\ModelController; // Corrected use statement
+use App\Http\Controllers\Api\BuyerController; // Added BuyerController import
 
 Route::prefix('bcms')->group(function () {
     // Routes requiring authentication and manager role for user management
@@ -39,4 +40,7 @@ Route::prefix('bcms')->group(function () {
     // API resources for Makes and Models, restricted to Managers
     Route::apiResource('/makes', MakeController::class)->middleware(['auth:api', 'role:Manager']);
     Route::apiResource('/models', ModelController::class)->middleware(['auth:api', 'role:Manager']);
+
+    // API resource for Buyers, restricted to Managers (or other appropriate roles)
+    Route::apiResource('/buyers', BuyerController::class)->middleware(['auth:api', 'role:Manager']); // Adjust role as needed
 });
