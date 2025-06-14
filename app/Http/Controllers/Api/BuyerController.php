@@ -9,15 +9,10 @@ use App\Models\Buyer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class BuyerController extends Controller
 {
-    const CACHE_TAG_BUYERS_LIST = 'buyers_list';
-    const CACHE_KEY_BUYER_ITEM_PREFIX = 'buyer_item_';
-    const CACHE_TTL_SECONDS = 3600; // 1 hour
-
     /**
      * Display a listing of the resource.
      */
@@ -25,25 +20,32 @@ class BuyerController extends Controller
     {
         $page = $request->query('page', 1);
         $limit = $request->query('limit', 10);
-        $cacheKey = "buyers:page:{$page}:limit:{$limit}";
+        $nameFilter = $request->query('name');
+        $phoneFilter = $request->query('phone');
 
-        Log::info("Attempting to retrieve buyers from cache with key: {$cacheKey} using tags: [" . self::CACHE_TAG_BUYERS_LIST . "]");
+        // Directly query the database
+        $query = Buyer::with(['createdBy', 'updatedBy']);
 
-        $data = Cache::tags(self::CACHE_TAG_BUYERS_LIST)->remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($limit, $page, $cacheKey) {
-            Log::info("Cache miss for buyers list key: {$cacheKey}. Fetching from database.");
-            $query = Buyer::with(['createdBy', 'updatedBy'])->orderByDesc('created_at');
-            $total = $query->count();
-            $buyers = $query->skip(($page - 1) * $limit)->take($limit)->get();
-            return ['buyers' => $buyers, 'total' => $total];
-        });
+        if ($nameFilter) {
+            $query->where('name', 'like', '%' . $nameFilter . '%');
+        }
 
+        if ($phoneFilter) {
+            $query->where('phone', $phoneFilter);
+        }
+
+        $query->orderByDesc('created_at');
+        
+        $total = $query->count(); // Count after filtering
+        $buyers = $query->skip(($page - 1) * $limit)->take($limit)->get();
+        
         return response()->json([
-            'data' => $data['buyers'],
+            'data' => $buyers,
             'meta' => [
                 'page' => (int)$page,
                 'limit' => (int)$limit,
-                'total' => $data['total'],
-                'pages' => ceil($data['total'] / $limit)
+                'total' => $total,
+                'pages' => ceil($total / $limit)
             ]
         ]);
     }
@@ -59,9 +61,6 @@ class BuyerController extends Controller
 
         $buyer = Buyer::create($validatedData);
 
-        Cache::tags(self::CACHE_TAG_BUYERS_LIST)->flush();
-        Log::info("Buyers list cache flushed due to new buyer creation.");
-
         return response()->json($buyer->load(['createdBy', 'updatedBy']), 201);
     }
 
@@ -70,13 +69,7 @@ class BuyerController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $cacheKey = self::CACHE_KEY_BUYER_ITEM_PREFIX . $id;
-        Log::info("Attempting to retrieve buyer from cache with key: {$cacheKey}");
-
-        $buyer = Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($id, $cacheKey) {
-            Log::info("Cache miss for buyer item key: {$cacheKey}. Fetching from database.");
-            return Buyer::with(['createdBy', 'updatedBy'])->find($id);
-        });
+        $buyer = Buyer::with(['createdBy', 'updatedBy'])->find($id);
 
         if (!$buyer) {
             return response()->json(['message' => 'Buyer not found'], 404);
@@ -99,10 +92,6 @@ class BuyerController extends Controller
 
         $buyer->update($validatedData);
 
-        Cache::forget(self::CACHE_KEY_BUYER_ITEM_PREFIX . $id);
-        Cache::tags(self::CACHE_TAG_BUYERS_LIST)->flush();
-        Log::info("Cache flushed for buyer item {$id} and buyers list due to update.");
-
         return response()->json($buyer->load(['createdBy', 'updatedBy']));
     }
 
@@ -117,10 +106,6 @@ class BuyerController extends Controller
         }
 
         $buyer->delete();
-
-        Cache::forget(self::CACHE_KEY_BUYER_ITEM_PREFIX . $id);
-        Cache::tags(self::CACHE_TAG_BUYERS_LIST)->flush();
-        Log::info("Cache flushed for buyer item {$id} and buyers list due to deletion.");
 
         return response()->json(['message' => 'Buyer deleted successfully']);
     }
