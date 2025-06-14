@@ -27,7 +27,8 @@ class Car extends Model
         'status',
         'vin',
         'metadata',
-        'repair_costs',
+        'repair_costs', // JSON field for individual repair items
+        'total_repair_cost', // Calculated total of repair_costs
         'created_by', // Assuming these are set programmatically
         'updated_by', // Assuming these are set programmatically
     ];
@@ -43,6 +44,7 @@ class Car extends Model
         'public_price' => 'decimal:2', // Added public_price cast
         'sold_price' => 'decimal:2',
         'transition_cost' => 'decimal:2',
+        'total_repair_cost' => 'decimal:2', // Cast for the new column
         'metadata' => 'array', // Changed from json to array for easier handling in Laravel
         'repair_costs' => 'array', // Changed from json to array
         'created_at' => 'datetime',

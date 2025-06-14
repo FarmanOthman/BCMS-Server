@@ -95,6 +95,23 @@ class CarController extends Controller
     }
 
     /**
+     * Calculate total repair cost from the repair_costs JSON field.
+     */
+    private function calculateTotalRepairCost($repairCosts): float
+    {
+        $totalRepairCost = 0;
+        if (!empty($repairCosts)) {
+            // repair_costs is already an array due to model casting or previous json_decode
+            foreach ($repairCosts as $repair) {
+                if (isset($repair['cost']) && is_numeric($repair['cost'])) {
+                    $totalRepairCost += (float)$repair['cost'];
+                }
+            }
+        }
+        return $totalRepairCost;
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
@@ -104,13 +121,13 @@ class CarController extends Controller
             'model_id' => 'required|uuid|exists:models,id',
             'year' => 'required|integer|min:1900|max:2100',
             'base_price' => 'required|numeric|min:0',
-            'public_price' => 'required|numeric|gt:0', // Added public_price validation
-            'sold_price' => 'nullable|numeric|min:0',
+            'public_price' => 'required|numeric|gt:0',
             'transition_cost' => 'nullable|numeric|min:0',
-            'status' => ['nullable', Rule::in(['available', 'sold', 'pending', 'maintenance'])], // Assuming car_status enum/type has these values
+            'status' => ['required', Rule::in(['available', 'sold'])],
             'vin' => 'required|string|min:10|max:20|unique:cars,vin',
             'metadata' => 'nullable|json',
-            'repair_costs' => 'nullable|json',
+            'repair_costs' => 'nullable|json', // Input as JSON string
+            // total_repair_cost is not in validation as it's calculated
         ]);
 
         if ($validator->fails()) {
@@ -118,15 +135,26 @@ class CarController extends Controller
         }
 
         $validatedData = $validator->validated();
+        unset($validatedData['sold_price']);
+
         $validatedData['created_by'] = Auth::id();
         $validatedData['updated_by'] = Auth::id();
 
-        // Convert metadata and repair_costs from JSON string to array if they are strings
+        // Decode repair_costs if it's a JSON string from the request
+        $repairCostsArray = [];
+        if (isset($validatedData['repair_costs']) && is_string($validatedData['repair_costs'])) {
+            $repairCostsArray = json_decode($validatedData['repair_costs'], true);
+            // Store the array format back if your model expects an array for the json column
+            $validatedData['repair_costs'] = $repairCostsArray; 
+        } elseif (isset($validatedData['repair_costs']) && is_array($validatedData['repair_costs'])) {
+            $repairCostsArray = $validatedData['repair_costs'];
+        }
+
+        $validatedData['total_repair_cost'] = $this->calculateTotalRepairCost($repairCostsArray);
+
+        // Convert metadata from JSON string to array if necessary
         if (isset($validatedData['metadata']) && is_string($validatedData['metadata'])) {
             $validatedData['metadata'] = json_decode($validatedData['metadata'], true);
-        }
-        if (isset($validatedData['repair_costs']) && is_string($validatedData['repair_costs'])) {
-            $validatedData['repair_costs'] = json_decode($validatedData['repair_costs'], true);
         }
 
         $car = Car::create($validatedData);
@@ -179,13 +207,12 @@ class CarController extends Controller
             'model_id' => 'sometimes|required|uuid|exists:models,id',
             'year' => 'sometimes|required|integer|min:1900|max:2100',
             'base_price' => 'sometimes|required|numeric|min:0',
-            'public_price' => 'sometimes|required|numeric|gt:0', // Added public_price validation
-            'sold_price' => 'nullable|numeric|min:0',
+            'public_price' => 'sometimes|required|numeric|gt:0',
             'transition_cost' => 'nullable|numeric|min:0',
-            'status' => ['nullable', Rule::in(['available', 'sold', 'pending', 'maintenance'])], // Assuming car_status enum/type
+            'status' => ['sometimes', 'required', Rule::in(['available', 'sold'])],
             'vin' => 'sometimes|required|string|min:10|max:20|unique:cars,vin,' . $id,
             'metadata' => 'nullable|json',
-            'repair_costs' => 'nullable|json',
+            'repair_costs' => 'nullable|json', // Input as JSON string
         ]);
 
         if ($validator->fails()) {
@@ -193,14 +220,29 @@ class CarController extends Controller
         }
 
         $validatedData = $validator->validated();
+        unset($validatedData['sold_price']);
         $validatedData['updated_by'] = Auth::id();
 
-        // Convert metadata and repair_costs from JSON string to array if they are strings
+        // Decode and calculate total_repair_cost if repair_costs is being updated
+        if ($request->has('repair_costs')) {
+            $repairCostsArray = [];
+            if (is_string($validatedData['repair_costs'])) {
+                $repairCostsArray = json_decode($validatedData['repair_costs'], true);
+                $validatedData['repair_costs'] = $repairCostsArray; // Ensure it's stored as an array if model expects it
+            } elseif (is_array($validatedData['repair_costs'])) {
+                $repairCostsArray = $validatedData['repair_costs'];
+            }
+            $validatedData['total_repair_cost'] = $this->calculateTotalRepairCost($repairCostsArray);
+        } else {
+            // If repair_costs is not in the request, but other fields might affect it indirectly (though not in this model)
+            // or if we want to ensure it's always correct based on the current DB state of repair_costs:
+            // $validatedData['total_repair_cost'] = $this->calculateTotalRepairCost($car->repair_costs ?? []);
+            // For now, only recalculate if repair_costs itself is provided in the update request.
+        }
+
+        // Convert metadata from JSON string to array if necessary
         if (isset($validatedData['metadata']) && is_string($validatedData['metadata'])) {
             $validatedData['metadata'] = json_decode($validatedData['metadata'], true);
-        }
-        if (isset($validatedData['repair_costs']) && is_string($validatedData['repair_costs'])) {
-            $validatedData['repair_costs'] = json_decode($validatedData['repair_costs'], true);
         }
 
         $car->update($validatedData);
