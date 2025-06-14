@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http;
+namespace App\Http; 
 
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
@@ -38,6 +38,7 @@ class Kernel extends HttpKernel
         'api' => [
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\UserActivityLogMiddleware::class, // Add this line
             // Consider adding CORS middleware here if needed globally for API
             // \App\\Http\\Middleware\\Cors::class, // Example if you have a custom one or use a package
         ],
@@ -52,7 +53,8 @@ class Kernel extends HttpKernel
      */
     protected $middlewareAliases = [
         'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
-        'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,        'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
+        'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+        'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
         // 'guest' => \Illuminate\Auth\Middleware\RedirectIfAuthenticated::class, // Typically for web
         'precognitive' => \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
