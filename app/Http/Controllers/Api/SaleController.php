@@ -72,6 +72,11 @@ class SaleController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
+        // Set JWT claims for RLS
+        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+            'claims' => json_encode(['sub' => Auth::id()]),
+        ]);
+
         $car = Car::findOrFail($request->car_id);
 
         if ($car->status === 'sold') {
@@ -148,6 +153,11 @@ class SaleController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
+        // Set JWT claims for RLS
+        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+            'claims' => json_encode(['sub' => Auth::id()]),
+        ]);
+
         // Prevent changing car_id for an existing sale
         if ($request->has('car_id') && $request->car_id !== $sale->car_id) {
             return response()->json(['error' => 'Cannot change the car associated with a sale. Please create a new sale.'], 422);
@@ -200,6 +210,12 @@ class SaleController extends Controller
      */
     public function destroy(Sale $sale)
     {
+
+        // Set JWT claims for RLS
+        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+            'claims' => json_encode(['sub' => Auth::id()]),
+        ]);
+
         $car = Car::find($sale->car_id);
 
         // Revert car status to 'available' and clear sold_price if the car is found

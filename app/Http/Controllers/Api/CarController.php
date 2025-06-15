@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB; // Added for DB::statement
 
 class CarController extends Controller
 {
@@ -134,6 +135,11 @@ class CarController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
+        // Set JWT claims for RLS
+        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+            'claims' => json_encode(['sub' => Auth::id()]),
+        ]);
+
         $validatedData = $validator->validated();
         unset($validatedData['sold_price']);
 
@@ -202,6 +208,11 @@ class CarController extends Controller
             return response()->json(['message' => 'Car not found'], 404);
         }
 
+        // Set JWT claims for RLS
+        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+            'claims' => json_encode(['sub' => Auth::id()]),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'make_id' => 'sometimes|required|uuid|exists:makes,id',
             'model_id' => 'sometimes|required|uuid|exists:models,id',
@@ -267,6 +278,11 @@ class CarController extends Controller
         if (!$car) {
             return response()->json(['message' => 'Car not found'], 404);
         }
+
+        // Set JWT claims for RLS
+        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+            'claims' => json_encode(['sub' => Auth::id()]),
+        ]);
 
         $car->delete();
 

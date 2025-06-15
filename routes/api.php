@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\SaleController; // Added SaleController import
 use App\Http\Controllers\Api\DailySalesReportController; // Added DailySalesReportController import
 use App\Http\Controllers\Api\MonthlySalesReportController; // Added MonthlySalesReportController import
 use App\Http\Controllers\Api\YearlySalesReportController; // Added YearlySalesReportController import
+use App\Http\Controllers\Api\FinanceRecordController; // Added import for FinanceRecordController
 
 Route::prefix('bcms')->group(function () {
     // Routes requiring authentication and manager role for user management
@@ -55,4 +56,7 @@ Route::prefix('bcms')->group(function () {
     Route::get('/reports/daily', [DailySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
     Route::get('/reports/monthly', [MonthlySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
     Route::get('/reports/yearly', [YearlySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
+
+    // API resource for Finance Records, restricted to Managers
+    Route::apiResource('/finance-records', FinanceRecordController::class)->middleware(['auth:api', 'role:Manager']);
 });
