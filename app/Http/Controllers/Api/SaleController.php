@@ -65,7 +65,7 @@ class SaleController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'car_id' => 'required|uuid|exists:cars,id',
-            'buyer_id' => 'required|uuid|exists:buyer,id',
+            'buyer_id' => 'required|uuid|exists:buyer,id', // Corrected table name to buyer
             'sale_price' => 'required|numeric|min:0',
             'sale_date' => 'required|date|before_or_equal:today',
             'notes' => 'nullable|string',
@@ -132,7 +132,7 @@ class SaleController extends Controller
             }
             Log::error('Sale creation QueryException: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to process sale. Database error.', 'details' => $e->getMessage()], 500);
-        } catch (Exception $e) { // Fixed: Removed backslash
+        } catch (Exception $e) {
             Log::error('Sale creation failed: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to process sale. Please try again.', 'details' => $e->getMessage()], 500);
         }
@@ -152,7 +152,7 @@ class SaleController extends Controller
     public function update(Request $request, Sale $sale)
     {
         $validator = Validator::make($request->all(), [
-            'buyer_id' => 'sometimes|required|uuid|exists:buyer,id', // Corrected validation
+            'buyer_id' => 'sometimes|required|uuid|exists:buyer,id', // Corrected table name to buyer
             'sale_price' => 'sometimes|required|numeric|min:0',
             'sale_date' => 'sometimes|required|date|before_or_equal:today',
             'notes' => 'nullable|string',

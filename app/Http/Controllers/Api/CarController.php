@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Car;
+use App\Models\Sale; // Added import for Sale model
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -200,9 +201,9 @@ class CarController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $validatedData = $request->all(); // Get all request data for validation
+        $validatedDataFromRequest = $request->all(); // Get all request data for validation
 
-        $car = DB::transaction(function () use ($request, $id, $validatedData) {
+        $car = DB::transaction(function () use ($request, $id, $validatedDataFromRequest) {
             $currentCar = Car::findOrFail($id); // Use findOrFail to handle not found case early
 
             Log::info('User ID before setting claims in CarController update: ' . (Auth::id() ?? 'NULL'));
@@ -210,7 +211,7 @@ class CarController extends Controller
                 'claims' => json_encode(['sub' => Auth::id()]),
             ]);
 
-            $validator = Validator::make($validatedData, [
+            $validator = Validator::make($validatedDataFromRequest, [
                 'make_id' => 'sometimes|required|uuid|exists:makes,id',
                 'model_id' => 'sometimes|required|uuid|exists:models,id',
                 'year' => 'sometimes|required|integer|min:1900|max:2100',
@@ -224,15 +225,17 @@ class CarController extends Controller
             ]);
 
             if ($validator->fails()) {
-                // Throw a validation exception or return a response. 
-                // For simplicity here, we'll let it be caught by Laravel's handler or rethrow.
-                // In a real app, you might want a more specific error response.
                 throw new \Illuminate\Validation\ValidationException($validator);
             }
 
             $updateData = $validator->validated();
             unset($updateData['sold_price']);
             $updateData['updated_by'] = Auth::id();
+
+            $costFieldsPotentiallyUpdated = false;
+            if ($request->has('base_price') || $request->has('transition_cost') || $request->has('repair_costs')) {
+                $costFieldsPotentiallyUpdated = true;
+            }
 
             if ($request->has('repair_costs')) {
                 $repairCostsArray = [];
@@ -250,6 +253,30 @@ class CarController extends Controller
             }
 
             $currentCar->update($updateData);
+
+            // After car is updated, check if cost-related fields changed and update associated sales
+            if ($costFieldsPotentiallyUpdated) {
+                // Refresh car model to get all attributes including those not in $updateData but potentially changed by accessors/mutators or defaults
+                $currentCar->refresh(); 
+
+                $sales = Sale::where('car_id', $currentCar->id)->get();
+                foreach ($sales as $sale) {
+                    $newPurchaseCost = ($currentCar->base_price ?? 0) +
+                                     ($currentCar->transition_cost ?? 0) +
+                                     ($currentCar->total_repair_cost ?? 0);
+
+                    $newProfitLoss = $sale->sale_price - $newPurchaseCost;
+
+                    if ($sale->purchase_cost != $newPurchaseCost || $sale->profit_loss != $newProfitLoss) {
+                        $sale->update([
+                            'purchase_cost' => $newPurchaseCost,
+                            'profit_loss' => $newProfitLoss,
+                            'updated_by' => Auth::id(),
+                        ]);
+                        Log::info("Updated Sale ID {$sale->id} due to Car ID {$currentCar->id} cost change. New Purchase Cost: {$newPurchaseCost}, New Profit/Loss: {$newProfitLoss}");
+                    }
+                }
+            }
 
             Cache::forget("car:{$id}");
             Log::info("Cache cleared for car ID: {$id} due to update.");
