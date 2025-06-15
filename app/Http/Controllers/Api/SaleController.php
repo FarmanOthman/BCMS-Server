@@ -9,7 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\DB; // Added for database transactions
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SaleController extends Controller
 {
@@ -72,40 +73,35 @@ class SaleController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
+        $sale = DB::transaction(function () use ($request) {
+            Log::info('User ID before setting claims in SaleController store: ' . (Auth::id() ?? 'NULL'));
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        $car = Car::findOrFail($request->car_id);
+            $car = Car::findOrFail($request->car_id);
 
-        if ($car->status === 'sold') {
-            return response()->json(['error' => 'Car is already sold.'], 409); // 409 Conflict
-        }
+            if ($car->status === 'sold') {
+                throw new \App\Exceptions\CarAlreadySoldException('Car is already sold.');
+            }
 
-        // Calculate total repair costs
-        $totalRepairCost = 0;
-        if (!empty($car->repair_costs)) {
-            // Assuming repair_costs is an array of objects/arrays with a 'cost' key
-            foreach ($car->repair_costs as $repair) {
-                if (isset($repair['cost']) && is_numeric($repair['cost'])) {
-                    $totalRepairCost += (float)$repair['cost'];
+            $totalRepairCost = 0;
+            if (!empty($car->repair_costs)) {
+                foreach ($car->repair_costs as $repair) {
+                    if (isset($repair['cost']) && is_numeric($repair['cost'])) {
+                        $totalRepairCost += (float)$repair['cost'];
+                    }
                 }
             }
-        }
 
-        $purchaseCost = $car->base_price + ($car->transition_cost ?? 0) + $totalRepairCost;
-        $profitLoss = $request->sale_price - $purchaseCost;
+            $purchaseCost = $car->base_price + ($car->transition_cost ?? 0) + $totalRepairCost;
+            $profitLoss = $request->sale_price - $purchaseCost;
 
-        $sale = null; // Initialize sale variable
-
-        DB::beginTransaction();
-        try {
-            $sale = Sale::create([
+            $newSale = Sale::create([
                 'car_id' => $request->car_id,
                 'buyer_id' => $request->buyer_id,
-                'sale_price' => $request->sale_price, // This is the actual sale price to the buyer
-                'purchase_cost' => $purchaseCost, // Calculated total cost for the dealership
+                'sale_price' => $request->sale_price,
+                'purchase_cost' => $purchaseCost,
                 'profit_loss' => $profitLoss,
                 'sale_date' => $request->sale_date,
                 'notes' => $request->notes,
@@ -113,18 +109,13 @@ class SaleController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
-            // Update car status to 'sold' and set sold_price (which is the same as sale_price from the request)
             $car->status = 'sold';
-            $car->sold_price = $request->sale_price; // Car's sold_price is the price it was sold to the buyer for
+            $car->sold_price = $request->sale_price;
             $car->updated_by = Auth::id();
             $car->save();
-
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            // Log the exception $e->getMessage()
-            return response()->json(['error' => 'Failed to process sale. Please try again.', 'details' => $e->getMessage()], 500);
-        }
+            
+            return $newSale;
+        });
 
         return response()->json($sale->load(['car', 'buyer']), 201);
     }
@@ -142,35 +133,34 @@ class SaleController extends Controller
      */
     public function update(Request $request, Sale $sale)
     {
-        $validator = Validator::make($request->all(), [
-            'buyer_id' => 'sometimes|required|uuid|exists:buyers,id',
-            'sale_price' => 'sometimes|required|numeric|min:0',
-            'sale_date' => 'sometimes|required|date|before_or_equal:today',
-            'notes' => 'nullable|string',
-        ]);
+        $validatedData = $request->all();
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
+        $updatedSale = DB::transaction(function () use ($request, $sale, $validatedData) {
+            Log::info('User ID before setting claims in SaleController update: ' . (Auth::id() ?? 'NULL'));
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
-
-        // Prevent changing car_id for an existing sale
-        if ($request->has('car_id') && $request->car_id !== $sale->car_id) {
-            return response()->json(['error' => 'Cannot change the car associated with a sale. Please create a new sale.'], 422);
-        }
-
-        $dataToUpdate = $request->only(['buyer_id', 'sale_price', 'sale_date', 'notes']);
-        $dataToUpdate['updated_by'] = Auth::id();
-
-        DB::beginTransaction();
-        try {
+            $validator = Validator::make($validatedData, [
+                'buyer_id' => 'sometimes|required|uuid|exists:buyers,id',
+                'sale_price' => 'sometimes|required|numeric|min:0',
+                'sale_date' => 'sometimes|required|date|before_or_equal:today',
+                'notes' => 'nullable|string',
+            ]);
+    
+            if ($validator->fails()) {
+                throw new \Illuminate\Validation\ValidationException($validator);
+            }
+    
+            if ($request->has('car_id') && $request->car_id !== $sale->car_id) {
+                throw new \App\Exceptions\CannotChangeCarForSaleException('Cannot change the car associated with a sale. Please create a new sale.');
+            }
+    
+            $dataToUpdate = $validator->validated(); // Use validated data
+            $dataToUpdate['updated_by'] = Auth::id();
+    
             $car = Car::findOrFail($sale->car_id);
-
-            // Recalculate profit_loss if sale_price is changed
+    
             if ($request->has('sale_price')) {
                 $totalRepairCost = 0;
                 if (!empty($car->repair_costs)) {
@@ -181,28 +171,19 @@ class SaleController extends Controller
                     }
                 }
                 $currentPurchaseCost = $car->base_price + ($car->transition_cost ?? 0) + $totalRepairCost;
-                // If purchase_cost was stored accurately on sale creation, it could be used directly:
-                // $currentPurchaseCost = $sale->purchase_cost;
-                
-                $dataToUpdate['purchase_cost'] = $currentPurchaseCost; // Ensure purchase_cost is updated if logic changes or for consistency
+                $dataToUpdate['purchase_cost'] = $currentPurchaseCost;
                 $dataToUpdate['profit_loss'] = $request->sale_price - $currentPurchaseCost;
                 
-                // Update the car's sold_price as well
                 $car->sold_price = $request->sale_price;
                 $car->updated_by = Auth::id();
-                // Car status should remain 'sold' unless explicitly handled otherwise
                 $car->save();
             }
-
+    
             $sale->update($dataToUpdate);
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            // Log the exception $e->getMessage()
-            return response()->json(['error' => 'Failed to update sale. Please try again.', 'details' => $e->getMessage()], 500);
-        }
+            return $sale;
+        });
 
-        return response()->json($sale->load(['car', 'buyer']));
+        return response()->json($updatedSale->load(['car', 'buyer']));
     }
 
     /**
@@ -210,23 +191,22 @@ class SaleController extends Controller
      */
     public function destroy(Sale $sale)
     {
+        DB::transaction(function () use ($sale) {
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
+            $car = Car::find($sale->car_id);
 
-        $car = Car::find($sale->car_id);
-
-        // Revert car status to 'available' and clear sold_price if the car is found
-        if ($car) {
-            $car->status = 'available'; // Or a more sophisticated status management if needed
-            $car->sold_price = null;
-            $car->updated_by = Auth::id();
-            $car->save();
-        }
-
-        $sale->delete();
+            if ($car) {
+                $car->status = 'available';
+                $car->sold_price = null;
+                $car->updated_by = Auth::id();
+                $car->save();
+            }
+    
+            $sale->delete();
+        });
 
         return response()->json(null, 204);
     }

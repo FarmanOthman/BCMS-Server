@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\DB; // Added for DB::statement
+use Illuminate\Support\Facades\DB;
 
 class CarController extends Controller
 {
@@ -128,46 +128,43 @@ class CarController extends Controller
             'vin' => 'required|string|min:10|max:20|unique:cars,vin',
             'metadata' => 'nullable|json',
             'repair_costs' => 'nullable|json', // Input as JSON string
-            // total_repair_cost is not in validation as it's calculated
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
+        $car = DB::transaction(function () use ($request, $validator) {
+            Log::info('User ID before setting claims in CarController store: ' . (Auth::id() ?? 'NULL'));
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        $validatedData = $validator->validated();
-        unset($validatedData['sold_price']);
+            $validatedData = $validator->validated();
+            unset($validatedData['sold_price']);
 
-        $validatedData['created_by'] = Auth::id();
-        $validatedData['updated_by'] = Auth::id();
+            $validatedData['created_by'] = Auth::id();
+            $validatedData['updated_by'] = Auth::id();
 
-        // Decode repair_costs if it's a JSON string from the request
-        $repairCostsArray = [];
-        if (isset($validatedData['repair_costs']) && is_string($validatedData['repair_costs'])) {
-            $repairCostsArray = json_decode($validatedData['repair_costs'], true);
-            // Store the array format back if your model expects an array for the json column
-            $validatedData['repair_costs'] = $repairCostsArray; 
-        } elseif (isset($validatedData['repair_costs']) && is_array($validatedData['repair_costs'])) {
-            $repairCostsArray = $validatedData['repair_costs'];
-        }
+            $repairCostsArray = [];
+            if (isset($validatedData['repair_costs']) && is_string($validatedData['repair_costs'])) {
+                $repairCostsArray = json_decode($validatedData['repair_costs'], true);
+                $validatedData['repair_costs'] = $repairCostsArray;
+            } elseif (isset($validatedData['repair_costs']) && is_array($validatedData['repair_costs'])) {
+                $repairCostsArray = $validatedData['repair_costs'];
+            }
+            $validatedData['total_repair_cost'] = $this->calculateTotalRepairCost($repairCostsArray);
 
-        $validatedData['total_repair_cost'] = $this->calculateTotalRepairCost($repairCostsArray);
+            if (isset($validatedData['metadata']) && is_string($validatedData['metadata'])) {
+                $validatedData['metadata'] = json_decode($validatedData['metadata'], true);
+            }
 
-        // Convert metadata from JSON string to array if necessary
-        if (isset($validatedData['metadata']) && is_string($validatedData['metadata'])) {
-            $validatedData['metadata'] = json_decode($validatedData['metadata'], true);
-        }
+            $newCar = Car::create($validatedData);
 
-        $car = Car::create($validatedData);
-
-        // Clear cache for the list of cars using tags
-        Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
-        Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to new car creation.");
+            Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
+            Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to new car creation.");
+            return $newCar;
+        });
 
         return response()->json($car->load(['make', 'model', 'createdBy', 'updatedBy']), 201);
     }
@@ -203,69 +200,65 @@ class CarController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $car = Car::find($id);
-        if (!$car) {
-            return response()->json(['message' => 'Car not found'], 404);
-        }
+        $validatedData = $request->all(); // Get all request data for validation
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
+        $car = DB::transaction(function () use ($request, $id, $validatedData) {
+            $currentCar = Car::findOrFail($id); // Use findOrFail to handle not found case early
 
-        $validator = Validator::make($request->all(), [
-            'make_id' => 'sometimes|required|uuid|exists:makes,id',
-            'model_id' => 'sometimes|required|uuid|exists:models,id',
-            'year' => 'sometimes|required|integer|min:1900|max:2100',
-            'base_price' => 'sometimes|required|numeric|min:0',
-            'public_price' => 'sometimes|required|numeric|gt:0',
-            'transition_cost' => 'nullable|numeric|min:0',
-            'status' => ['sometimes', 'required', Rule::in(['available', 'sold'])],
-            'vin' => 'sometimes|required|string|min:10|max:20|unique:cars,vin,' . $id,
-            'metadata' => 'nullable|json',
-            'repair_costs' => 'nullable|json', // Input as JSON string
-        ]);
+            Log::info('User ID before setting claims in CarController update: ' . (Auth::id() ?? 'NULL'));
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
+            $validator = Validator::make($validatedData, [
+                'make_id' => 'sometimes|required|uuid|exists:makes,id',
+                'model_id' => 'sometimes|required|uuid|exists:models,id',
+                'year' => 'sometimes|required|integer|min:1900|max:2100',
+                'base_price' => 'sometimes|required|numeric|min:0',
+                'public_price' => 'sometimes|required|numeric|gt:0',
+                'transition_cost' => 'nullable|numeric|min:0',
+                'status' => ['sometimes', 'required', Rule::in(['available', 'sold'])],
+                'vin' => 'sometimes|required|string|min:10|max:20|unique:cars,vin,' . $id,
+                'metadata' => 'nullable|json',
+                'repair_costs' => 'nullable|json',
+            ]);
 
-        $validatedData = $validator->validated();
-        unset($validatedData['sold_price']);
-        $validatedData['updated_by'] = Auth::id();
-
-        // Decode and calculate total_repair_cost if repair_costs is being updated
-        if ($request->has('repair_costs')) {
-            $repairCostsArray = [];
-            if (is_string($validatedData['repair_costs'])) {
-                $repairCostsArray = json_decode($validatedData['repair_costs'], true);
-                $validatedData['repair_costs'] = $repairCostsArray; // Ensure it's stored as an array if model expects it
-            } elseif (is_array($validatedData['repair_costs'])) {
-                $repairCostsArray = $validatedData['repair_costs'];
+            if ($validator->fails()) {
+                // Throw a validation exception or return a response. 
+                // For simplicity here, we'll let it be caught by Laravel's handler or rethrow.
+                // In a real app, you might want a more specific error response.
+                throw new \Illuminate\Validation\ValidationException($validator);
             }
-            $validatedData['total_repair_cost'] = $this->calculateTotalRepairCost($repairCostsArray);
-        } else {
-            // If repair_costs is not in the request, but other fields might affect it indirectly (though not in this model)
-            // or if we want to ensure it's always correct based on the current DB state of repair_costs:
-            // $validatedData['total_repair_cost'] = $this->calculateTotalRepairCost($car->repair_costs ?? []);
-            // For now, only recalculate if repair_costs itself is provided in the update request.
-        }
 
-        // Convert metadata from JSON string to array if necessary
-        if (isset($validatedData['metadata']) && is_string($validatedData['metadata'])) {
-            $validatedData['metadata'] = json_decode($validatedData['metadata'], true);
-        }
+            $updateData = $validator->validated();
+            unset($updateData['sold_price']);
+            $updateData['updated_by'] = Auth::id();
 
-        $car->update($validatedData);
+            if ($request->has('repair_costs')) {
+                $repairCostsArray = [];
+                if (is_string($updateData['repair_costs'])) {
+                    $repairCostsArray = json_decode($updateData['repair_costs'], true);
+                    $updateData['repair_costs'] = $repairCostsArray;
+                } elseif (is_array($updateData['repair_costs'])) {
+                    $repairCostsArray = $updateData['repair_costs'];
+                }
+                $updateData['total_repair_cost'] = $this->calculateTotalRepairCost($repairCostsArray);
+            }
 
-        // Clear cache for the specific car
-        Cache::forget("car:{$id}");
-        Log::info("Cache cleared for car ID: {$id} due to update.");
+            if (isset($updateData['metadata']) && is_string($updateData['metadata'])) {
+                $updateData['metadata'] = json_decode($updateData['metadata'], true);
+            }
 
-        // Clear cache for the list of cars using tags
-        Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
-        Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to car update.");
-        
+            $currentCar->update($updateData);
+
+            Cache::forget("car:{$id}");
+            Log::info("Cache cleared for car ID: {$id} due to update.");
+            Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
+            Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to car update.");
+            
+            return $currentCar;
+        });
+
         return response()->json($car->load(['make', 'model', 'createdBy', 'updatedBy']));
     }
 
@@ -274,25 +267,21 @@ class CarController extends Controller
      */
     public function destroy(string $id)
     {
-        $car = Car::find($id);
-        if (!$car) {
-            return response()->json(['message' => 'Car not found'], 404);
-        }
+        DB::transaction(function () use ($id) {
+            $car = Car::findOrFail($id);
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
+            Log::info('User ID before setting claims in CarController destroy: ' . (Auth::id() ?? 'NULL'));
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        $car->delete();
+            $car->delete();
 
-        // Clear cache for the specific car
-        Cache::forget("car:{$id}");
-        Log::info("Cache cleared for car ID: {$id} due to deletion.");
-
-        // Clear cache for the list of cars using tags
-        Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
-        Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to car deletion.");
+            Cache::forget("car:{$id}");
+            Log::info("Cache cleared for car ID: {$id} due to deletion.");
+            Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
+            Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to car deletion.");
+        });
 
         return response()->json(['message' => 'Car deleted successfully']);
     }

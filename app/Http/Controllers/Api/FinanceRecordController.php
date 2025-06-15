@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log; // Ensure Log facade is imported
 
 class FinanceRecordController extends Controller
 {
@@ -75,16 +76,17 @@ class FinanceRecordController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
+        $financeRecord = DB::transaction(function () use ($request, $validator) {
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        $validatedData = $validator->validated();
-        $validatedData['created_by'] = Auth::id();
-        $validatedData['updated_by'] = Auth::id();
+            $validatedData = $validator->validated();
+            $validatedData['created_by'] = Auth::id();
+            $validatedData['updated_by'] = Auth::id();
 
-        $financeRecord = FinanceRecord::create($validatedData);
+            return FinanceRecord::create($validatedData);
+        });
 
         return response()->json($financeRecord->load(['createdBy', 'updatedBy']), 201);
     }
@@ -107,31 +109,32 @@ class FinanceRecordController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $financeRecord = FinanceRecord::find($id);
-        if (!$financeRecord) {
-            return response()->json(['message' => 'Finance record not found'], 404);
-        }
+        $validatedData = $request->all();
 
-        $validator = Validator::make($request->all(), [
-            'type' => 'sometimes|required|string|max:255',
-            'category' => 'sometimes|required|string|max:255',
-            'amount' => 'sometimes|required|numeric|min:0',
-            'description' => 'nullable|string',
-        ]);
+        $financeRecord = DB::transaction(function () use ($request, $id, $validatedData) {
+            $currentRecord = FinanceRecord::findOrFail($id);
+            
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
-
-        $validatedData = $validator->validated();
-        $validatedData['updated_by'] = Auth::id();
-
-        $financeRecord->update($validatedData);
+            $validator = Validator::make($validatedData, [
+                'type' => 'sometimes|required|string|max:255',
+                'category' => 'sometimes|required|string|max:255',
+                'amount' => 'sometimes|required|numeric|min:0',
+                'description' => 'nullable|string',
+            ]);
+    
+            if ($validator->fails()) {
+                throw new \Illuminate\Validation\ValidationException($validator);
+            }
+    
+            $updateData = $validator->validated();
+            $updateData['updated_by'] = Auth::id();
+    
+            $currentRecord->update($updateData);
+            return $currentRecord;
+        });
         
         return response()->json($financeRecord->load(['createdBy', 'updatedBy']));
     }
@@ -141,17 +144,15 @@ class FinanceRecordController extends Controller
      */
     public function destroy(string $id)
     {
-        $financeRecord = FinanceRecord::find($id);
-        if (!$financeRecord) {
-            return response()->json(['message' => 'Finance record not found'], 404);
-        }
+        DB::transaction(function () use ($id) {
+            $financeRecord = FinanceRecord::findOrFail($id);
+            
+            DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                'claims' => json_encode(['sub' => Auth::id()]),
+            ]);
 
-        // Set JWT claims for RLS
-        DB::statement("select set_config('request.jwt.claims', :claims, true)", [
-            'claims' => json_encode(['sub' => Auth::id()]),
-        ]);
-
-        $financeRecord->delete();
+            $financeRecord->delete();
+        });
 
         return response()->json(['message' => 'Finance record deleted successfully'], 200);
     }
