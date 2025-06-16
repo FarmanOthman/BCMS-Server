@@ -20,7 +20,7 @@ class UserFactory extends Factory
         return [
             'id' => Str::uuid(), // Add UUID for id
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'email' => fake()->safeEmail(), // Removed unique() to prevent Faker overflow in tests
             'role' => fake()->randomElement(['User', 'Manager']), // Add a default role
         ];
     }
