@@ -15,16 +15,14 @@ use App\Http\Controllers\Api\FinanceRecordController; // Added import for Financ
 
 Route::prefix('bcms')->group(function () {
     // Routes requiring authentication and manager role for user management
-    Route::middleware(['auth:api', 'role:Manager'])->group(function () {
+    Route::middleware(['role:Manager'])->group(function () {
         // Complete CRUD for users (only accessible by managers)
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'createUser']);
         Route::get('/users/{id}', [UserController::class, 'show']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
-
-        // Sign out (requires user to be authenticated to invalidate their Supabase session via token)
-        Route::post('/auth/signout', [AuthController::class, 'signOut']);    });
+    });
     
     // Public authentication routes
     Route::post('/auth/signin', [AuthController::class, 'signIn'])
@@ -32,31 +30,33 @@ Route::prefix('bcms')->group(function () {
 
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
     
-    // Get current user info (requires authentication)
-    Route::get('/auth/user', [AuthController::class, 'getUser'])
-        ->middleware('auth:api');
+    // Sign out for any authenticated user (middleware removed to let controller handle auth)
+    Route::post('/auth/signout', [AuthController::class, 'signOut']);
+
+    // Get current user info (requires authentication) - middleware removed
+    Route::get('/auth/user', [AuthController::class, 'getUser']);
     
     // Public endpoint for listing cars (index already exists)
     // Route::get('/cars', [CarController::class, 'index']); // This was already present
 
     // CRUD operations for Cars - Restricted to Managers
-    Route::apiResource('/cars', CarController::class)->middleware(['auth:api', 'role:Manager']);
+    Route::apiResource('/cars', CarController::class)->middleware(['role:Manager']);
 
     // API resources for Makes and Models, restricted to Managers
-    Route::apiResource('/makes', MakeController::class)->middleware(['auth:api', 'role:Manager']);
-    Route::apiResource('/models', ModelController::class)->middleware(['auth:api', 'role:Manager']);
+    Route::apiResource('/makes', MakeController::class)->middleware(['role:Manager']);
+    Route::apiResource('/models', ModelController::class)->middleware(['role:Manager']);
 
     // API resource for Buyers, restricted to Managers (or other appropriate roles)
-    Route::apiResource('/buyers', BuyerController::class)->middleware(['auth:api', 'role:Manager']); // Adjust role as needed
+    Route::apiResource('/buyers', BuyerController::class)->middleware(['role:Manager']); // Adjust role as needed
 
     // API resource for Sales, restricted to Managers
-    Route::apiResource('/sales', SaleController::class)->middleware(['auth:api', 'role:Manager']);
+    Route::apiResource('/sales', SaleController::class)->middleware(['role:Manager']);
 
     // Report Routes - Restricted to Managers (or other appropriate roles)
-    Route::get('/reports/daily', [DailySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
-    Route::get('/reports/monthly', [MonthlySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
-    Route::get('/reports/yearly', [YearlySalesReportController::class, 'show'])->middleware(['auth:api', 'role:Manager']);
+    Route::get('/reports/daily', [DailySalesReportController::class, 'show'])->middleware(['role:Manager']);
+    Route::get('/reports/monthly', [MonthlySalesReportController::class, 'show'])->middleware(['role:Manager']);
+    Route::get('/reports/yearly', [YearlySalesReportController::class, 'show'])->middleware(['role:Manager']);
 
     // API resource for Finance Records, restricted to Managers
-    Route::apiResource('/finance-records', FinanceRecordController::class)->middleware(['auth:api', 'role:Manager']);
+    Route::apiResource('/finance-records', FinanceRecordController::class)->middleware(['role:Manager']);
 });

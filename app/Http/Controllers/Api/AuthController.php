@@ -17,6 +17,52 @@ class AuthController extends Controller
         $this->supabase = $supabase;
     }
 
+    public function signUp(Request $request)
+    {
+        try {
+            $validatedData = $request->validate([
+                'email' => 'required|email|unique:users,email', // Assuming you have a users table for basic checks
+                'password' => 'required|string|min:8',
+                'name' => 'required|string|max:255',
+                'role' => 'required|string|in:user,admin,editor', // Example roles
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+
+        $user = $this->supabase->createUser(
+            $validatedData['email'],
+            $validatedData['password'],
+            $validatedData['name'],
+            $validatedData['role']
+        );
+
+        if (!$user || isset($user['error'])) {
+            Log::error('Supabase signup failed: ' . json_encode($user['error'] ?? ['message' => 'Unknown error']));
+            return response()->json(['error' => 'User registration failed', 'details' => $user['error'] ?? 'Unknown Supabase error'], 500);
+        }
+        
+        // Optionally, sign in the user immediately after registration
+        $signInResponse = $this->supabase->signInWithPassword(
+            $validatedData['email'],
+            $validatedData['password']
+        );
+
+        if (!$signInResponse || !isset($signInResponse['access_token'])) {
+            // User created but sign-in failed, might indicate an issue or just return created user
+            return response()->json(['user' => $user, 'message' => 'User created, but auto sign-in failed.'], 201);
+        }
+
+        return response()->json([
+            'message' => 'User registered successfully.',
+            'user' => $user, // This is the user object from Supabase createUser
+            'access_token' => $signInResponse['access_token'],
+            'refresh_token' => $signInResponse['refresh_token'] ?? null,
+            'expires_in' => $signInResponse['expires_in'] ?? null,
+            'token_type' => $signInResponse['token_type'] ?? 'bearer',
+        ], 201);
+    }
+
     public function signIn(Request $request)
     {
         try {
@@ -73,8 +119,19 @@ class AuthController extends Controller
 
     public function signOut(Request $request)
     {
-        // Temporarily bypass all logic including Supabase calls
-        return response()->json(['message' => 'SignOut method reached cleanly (simplified).']);
+        $token = $request->bearerToken();
+        if (!$token) {
+            return response()->json(['error' => 'No token provided'], 401);
+        }
+
+        // Attempt to sign out in Supabase; ignore failures
+        try {
+            $this->supabase->signOutUser($token);
+        } catch (\Throwable $e) {
+            // Log or ignore
+        }
+
+        return response()->json(['message' => 'Successfully logged out']);
     }
 
     public function getUser(Request $request)
@@ -91,8 +148,6 @@ class AuthController extends Controller
             return response()->json(['error' => 'Invalid token or user not found'], 401);
         }
 
-        return response()->json([
-            'user' => $user
-        ]);
+        return response()->json(['user' => $user]);
     }
 }

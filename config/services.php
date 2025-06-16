@@ -38,5 +38,6 @@ return [
         'url' => env('SUPABASE_URL'),
         'api_key' => env('SUPABASE_KEY'), // Public API key
         'admin_api_key' => env('SUPABASE_SERVICE_ROLE_KEY'), // Service role key for admin actions
+        'jwt_secret' => env('JWT_SECRET'), // Use JWT_SECRET for validating user tokens
     ],
 ];
