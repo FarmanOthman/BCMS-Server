@@ -35,14 +35,13 @@ class Sale extends Model
      * The attributes that should be cast.
      *
      * @var array<string, string>
-     */
-    protected $casts = [
+     */    protected $casts = [
         'id' => 'string',
         'car_id' => 'string',
         'buyer_id' => 'string',
-        'sale_price' => 'decimal:0', // Adjust scale if needed, e.g., decimal:2 for cents
-        'purchase_cost' => 'decimal:0', // Adjust scale if needed
-        'profit_loss' => 'decimal:0',   // Adjust scale if needed
+        'sale_price' => 'decimal:2', // Using 2 decimal places for currency values
+        'purchase_cost' => 'decimal:2', // Using 2 decimal places for currency values
+        'profit_loss' => 'decimal:2',   // Using 2 decimal places for currency values
         'sale_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
