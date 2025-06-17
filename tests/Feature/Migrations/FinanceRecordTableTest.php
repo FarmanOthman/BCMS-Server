@@ -27,6 +27,6 @@ it('migrates the financerecord table correctly', function () {
 
     // Optional: Check column types if necessary
     expect(Schema::getColumnType('financerecord', 'id'))->toBeString(); // uuid is string
-    expect(Schema::getColumnType('financerecord', 'cost'))->toBe(config('database.default') === 'sqlite' ? 'numeric' : 'decimal'); // SQLite uses numeric for decimal
+    expect(Schema::getColumnType('financerecord', 'cost'))->toBe(config('database.default') === 'sqlite' ? 'numeric' : 'numeric'); // Both SQLite and PostgreSQL use numeric for decimal
     expect(Schema::getColumnType('financerecord', 'created_at'))->toBe(config('database.default') === 'sqlite' ? 'datetime' : 'timestamp');
 });

@@ -16,11 +16,10 @@ class FinanceRecord extends Model
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
-     */
-    protected $fillable = [
+     */    protected $fillable = [
         'type',
         'category',
-        'amount',
+        'cost',
         'description',
         'created_by',
         'updated_by',
@@ -30,9 +29,8 @@ class FinanceRecord extends Model
      * The attributes that should be cast.
      *
      * @var array<string, string>
-     */
-    protected $casts = [
-        'amount' => 'decimal:2', // Assuming amount is a decimal with 2 places
+     */    protected $casts = [
+        'cost' => 'decimal:2', // Assuming amount is a decimal with 2 places
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
