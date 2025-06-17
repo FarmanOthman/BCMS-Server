@@ -127,9 +127,8 @@ class CarTest extends TestCase
         $car->transition_cost = 500;
         $car->public_price = 25000;
         $car->status = 'available';
-        
-        // Set repair costs as an array with name and cost keys
-        $car->repair_costs = [
+          // Set repair items as an array with name and cost keys
+        $car->repair_items = [
             ['name' => 'Paint job', 'cost' => 1200],
             ['name' => 'Brake replacement', 'cost' => 800],
             ['name' => 'Windshield repair', 'cost' => 500]
@@ -137,7 +136,7 @@ class CarTest extends TestCase
         
         // Calculate total repair cost manually
         $expectedTotal = 0;
-        foreach ($car->repair_costs as $item) {
+        foreach ($car->repair_items as $item) {
             $expectedTotal += $item['cost'];
         }
         
