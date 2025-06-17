@@ -2,10 +2,29 @@
 
 declare(strict_types=1);
 
+/**
+ * Feature Test: Daily Sales Report Command
+ * 
+ * Purpose:
+ * This test specifically verifies the functionality of the 'reports:generate-daily' Artisan command.
+ * It tests that the command correctly generates daily sales reports from sales data.
+ * 
+ * What it tests:
+ * - Command generates an empty report when no sales exist for a given date
+ * - Command correctly aggregates sales data for a specific date
+ * - Command properly calculates total sales, revenue, profit, averages and identifies most profitable car
+ * - Command ignores sales from other dates
+ * 
+ * Usage:
+ * Run this test when making changes to the daily report generation command to ensure
+ * it continues to work correctly with the application's data layer.
+ * 
+ * Command tested: 'reports:generate-daily'
+ */
+
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\DailySalesReport;
 use App\Models\Make;
@@ -54,8 +73,7 @@ it('generates report with correct aggregates when sales exist for the date', fun
         'total_repair_cost' => 200.00,
         'status' => 'available',
     ]);
-    // Ensure buyer emails are unique to avoid issues if BuyerFactory uses unique emails
-    $buyer1 = Buyer::factory()->create(['phone' => (string) Str::uuid()]); // Removed email override
+    $buyer1 = Buyer::factory()->create();
 
     $purchaseCostCar1 = $car1->cost_price + $car1->transition_cost + $car1->total_repair_cost;
     $salePriceCar1 = 15000.00;
@@ -83,7 +101,7 @@ it('generates report with correct aggregates when sales exist for the date', fun
         'total_repair_cost' => 100.00,
         'status' => 'available',
     ]);
-    $buyer2 = Buyer::factory()->create(['phone' => (string) Str::uuid()]); // Removed email override
+    $buyer2 = Buyer::factory()->create();
     $purchaseCostCar2 = $car2->cost_price + $car2->transition_cost + $car2->total_repair_cost;
     $salePriceCar2 = 10000.00; // Lower sale price, potentially smaller profit
     $profitCar2 = $salePriceCar2 - $purchaseCostCar2;
@@ -110,7 +128,7 @@ it('generates report with correct aggregates when sales exist for the date', fun
         'total_repair_cost' => 300.00,
         'status' => 'available',
     ]);
-    $buyer3 = Buyer::factory()->create(['phone' => (string) Str::uuid()]); // Removed email override
+    $buyer3 = Buyer::factory()->create();
     $purchaseCostCar3 = $car3->cost_price + $car3->transition_cost + $car3->total_repair_cost;
     $salePriceCar3 = 18000.00;
     $profitCar3 = $salePriceCar3 - $purchaseCostCar3;
