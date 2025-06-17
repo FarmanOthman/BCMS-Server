@@ -20,6 +20,7 @@ class FinanceRecord extends Model
         'type',
         'category',
         'cost',
+        'record_date',
         'description',
         'created_by',
         'updated_by',
@@ -31,6 +32,7 @@ class FinanceRecord extends Model
      * @var array<string, string>
      */    protected $casts = [
         'cost' => 'decimal:2', // Assuming amount is a decimal with 2 places
+        'record_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
