@@ -6,15 +6,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class MonthlySalesReport extends Model
-{
-    use HasFactory;
+{    use HasFactory;
 
     protected $table = 'monthlysalesreport';
-    // Eloquent doesn't natively support composite primary keys for find() or findOrFail().
-    // We will use where clauses for querying.
+    // We'll use composite key of year and month
     public $incrementing = false;
-    protected $primaryKey = null; // No single primary key, effectively composite ['year', 'month']
-
+    protected $primaryKey = 'year'; // Use year as primary key component
+    
     protected $fillable = [
         'year',
         'month',
@@ -24,9 +22,10 @@ class MonthlySalesReport extends Model
         'total_revenue',
         'total_profit',
         'avg_daily_profit',
-        'best_day',
-        'best_day_profit',
+        'best_day',        'best_day_profit',
         'profit_margin',
+        'finance_cost',
+        'net_profit',
         'created_by',
         'updated_by',
     ];
@@ -41,9 +40,10 @@ class MonthlySalesReport extends Model
         'updated_at' => 'datetime',
         'total_revenue' => 'decimal:2',
         'total_profit' => 'decimal:2',
-        'avg_daily_profit' => 'decimal:2',
-        'best_day_profit' => 'decimal:2',
+        'avg_daily_profit' => 'decimal:2',        'best_day_profit' => 'decimal:2',
         'profit_margin' => 'decimal:2',
+        'finance_cost' => 'decimal:2',
+        'net_profit' => 'decimal:2',
     ];
 
     // Define a scope for querying by year and month easily

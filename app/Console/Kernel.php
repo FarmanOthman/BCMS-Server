@@ -8,6 +8,7 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\GenerateDailySalesReport;
 use App\Console\Commands\GenerateMonthlySalesReport; // Added import for Monthly Report
 use App\Console\Commands\GenerateYearlySalesReport; // Added import for Yearly Report
+use App\Console\Commands\TestSalesReports; // Added import for test command
 
 class Kernel extends ConsoleKernel
 {
@@ -15,12 +16,12 @@ class Kernel extends ConsoleKernel
      * The Artisan commands provided by your application.
      *
      * @var array
-     */
-    protected $commands = [
+     */    protected $commands = [
         // ...existing commands...
         GenerateDailySalesReport::class, // Register the command
         GenerateMonthlySalesReport::class, // Register the Monthly Report command
         GenerateYearlySalesReport::class, // Register the Yearly Report command
+        TestSalesReports::class, // Register the test command
     ];
 
     /**
