@@ -7,7 +7,6 @@ use App\Models\Sale;
 use App\Models\Car;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Exceptions\CarAlreadySoldException;
@@ -63,7 +62,7 @@ class SaleController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validated = $this->validate($request, [
             'car_id' => 'required|uuid|exists:cars,id',
             'buyer_id' => 'required|uuid|exists:buyer,id', // Corrected table name to buyer
             'sale_price' => 'required|numeric|min:0',
@@ -71,18 +70,14 @@ class SaleController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
         try {
-            $sale = DB::transaction(function () use ($request) {
+            $sale = DB::transaction(function () use ($validated) {
                 // Set JWT claims for RLS. This must be within the transaction.
                 DB::statement("select set_config('request.jwt.claims', :claims, true)", [
                     'claims' => json_encode(['sub' => Auth::id()]),
                 ]);
 
-                $car = Car::findOrFail($request->car_id);
+                $car = Car::findOrFail($validated['car_id']);
 
                 if ($car->status === 'sold') {
                     throw new CarAlreadySoldException('Car is already sold.');
@@ -99,23 +94,23 @@ class SaleController extends Controller
                 }
 
                 $purchaseCost = $car->base_price + ($car->transition_cost ?? 0) + $totalRepairCost;
-                $profitLoss = $request->sale_price - $purchaseCost;
+                $profitLoss = $validated['sale_price'] - $purchaseCost;
 
                 $newSale = Sale::create([
-                    'car_id' => $request->car_id,
-                    'buyer_id' => $request->buyer_id,
-                    'sale_price' => $request->sale_price,
+                    'car_id' => $validated['car_id'],
+                    'buyer_id' => $validated['buyer_id'],
+                    'sale_price' => $validated['sale_price'],
                     'purchase_cost' => $purchaseCost,
                     'profit_loss' => $profitLoss,
-                    'sale_date' => $request->sale_date,
-                    'notes' => $request->notes,
+                    'sale_date' => $validated['sale_date'],
+                    'notes' => $validated['notes'] ?? null,
                     'created_by' => Auth::id(),
                     'updated_by' => Auth::id(),
                 ]);
 
                 // Update car status to 'sold' and set sold_price
                 $car->status = 'sold';
-                $car->sold_price = $request->sale_price;
+                $car->sold_price = $validated['sale_price'];
                 $car->updated_by = Auth::id();
                 $car->save();
                 
@@ -151,27 +146,21 @@ class SaleController extends Controller
      */
     public function update(Request $request, Sale $sale)
     {
-        $validator = Validator::make($request->all(), [
+        $validated = $this->validate($request, [
             'buyer_id' => 'sometimes|required|uuid|exists:buyer,id', // Corrected table name to buyer
             'sale_price' => 'sometimes|required|numeric|min:0',
             'sale_date' => 'sometimes|required|date|before_or_equal:today',
             'notes' => 'nullable|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
         if ($request->has('car_id') && $request->car_id !== $sale->car_id) {
-            // throw new CannotChangeCarForSaleException('Cannot change the car associated with a sale. Please create a new sale.');
             return response()->json(['error' => 'Cannot change the car associated with a sale. Please create a new sale.'], 422);
         }
 
-        $dataToUpdate = $request->only(['buyer_id', 'sale_price', 'sale_date', 'notes']);
-        // updated_by will be set within the transaction after setting JWT claims
+        $dataToUpdate = array_intersect_key($validated, array_flip(['buyer_id', 'sale_price', 'sale_date', 'notes']));
 
         try {
-            $updatedSale = DB::transaction(function () use ($sale, $request, $dataToUpdate) {
+            $updatedSale = DB::transaction(function () use ($sale, $dataToUpdate, $validated) {
                 DB::statement("select set_config('request.jwt.claims', :claims, true)", [
                     'claims' => json_encode(['sub' => Auth::id()]),
                 ]);
@@ -180,7 +169,7 @@ class SaleController extends Controller
 
                 $car = Car::findOrFail($sale->car_id);
 
-                if ($request->has('sale_price')) {
+                if (isset($validated['sale_price'])) {
                     $totalRepairCost = 0;
                     if (!empty($car->repair_costs)) {
                         foreach ($car->repair_costs as $repair) {
@@ -192,9 +181,9 @@ class SaleController extends Controller
                     $currentPurchaseCost = $car->base_price + ($car->transition_cost ?? 0) + $totalRepairCost;
                     
                     $dataToUpdate['purchase_cost'] = $currentPurchaseCost;
-                    $dataToUpdate['profit_loss'] = $request->sale_price - $currentPurchaseCost;
+                    $dataToUpdate['profit_loss'] = $validated['sale_price'] - $currentPurchaseCost;
                     
-                    $car->sold_price = $request->sale_price;
+                    $car->sold_price = $validated['sale_price'];
                     $car->updated_by = Auth::id();
                     $car->save();
                 }
@@ -205,17 +194,14 @@ class SaleController extends Controller
 
             return response()->json($updatedSale->load(['car', 'buyer']));
 
-        } catch (\Illuminate\Database\QueryException $e) { // Fixed: Removed backslash if it was for global namespace, kept for specific Illuminate exception
+        } catch (\Illuminate\Database\QueryException $e) {
             if (str_contains($e->getMessage(), 'Missing or empty request.jwt.claims')) {
                  return response()->json(['error' => 'Failed to update sale due to authentication context issue. Please try again.', 'details' => $e->getMessage()], 500);
             }
             Log::error('Sale update QueryException: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to update sale. Database error.', 'details' => $e->getMessage()], 500);
-        } catch (Exception $e) { // Fixed: Removed backslash
+        } catch (Exception $e) {
             Log::error('Sale update failed: ' . $e->getMessage());
-            // if ($e instanceof CannotChangeCarForSaleException) { // Example if using the exception
-            //     return response()->json(['error' => $e->getMessage()], 422);
-            // }
             return response()->json(['error' => 'Failed to update sale. Please try again.', 'details' => $e->getMessage()], 500);
         }
     }
@@ -245,13 +231,13 @@ class SaleController extends Controller
 
             return response()->json(null, 204);
 
-        } catch (\Illuminate\Database\QueryException $e) { // Fixed: Removed backslash if it was for global namespace, kept for specific Illuminate exception
+        } catch (\Illuminate\Database\QueryException $e) {
             if (str_contains($e->getMessage(), 'Missing or empty request.jwt.claims')) {
                  return response()->json(['error' => 'Failed to delete sale due to authentication context issue. Please try again.', 'details' => $e->getMessage()], 500);
             }
             Log::error('Sale deletion QueryException: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to delete sale. Database error.', 'details' => $e->getMessage()], 500);
-        } catch (Exception $e) { // Fixed: Removed backslash
+        } catch (Exception $e) {
             Log::error('Sale deletion failed: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to delete sale. Please try again.', 'details' => $e->getMessage()], 500);
         }

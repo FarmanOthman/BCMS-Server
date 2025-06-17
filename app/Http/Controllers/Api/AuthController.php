@@ -15,20 +15,14 @@ class AuthController extends Controller
     public function __construct(SupabaseService $supabase)
     {
         $this->supabase = $supabase;
-    }
-
-    public function signUp(Request $request)
+    }    public function signUp(Request $request)
     {
-        try {
-            $validatedData = $request->validate([
-                'email' => 'required|email|unique:users,email', // Assuming you have a users table for basic checks
-                'password' => 'required|string|min:8',
-                'name' => 'required|string|max:255',
-                'role' => 'required|string|in:user,admin,editor', // Example roles
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['errors' => $e->errors()], 422);
-        }
+        $validatedData = $this->validate($request, [
+            'email' => 'required|email|unique:users,email', // Assuming you have a users table for basic checks
+            'password' => 'required|string|min:8',
+            'name' => 'required|string|max:255',
+            'role' => 'required|string|in:user,admin,editor', // Example roles
+        ]);
 
         $user = $this->supabase->createUser(
             $validatedData['email'],
@@ -61,22 +55,16 @@ class AuthController extends Controller
             'expires_in' => $signInResponse['expires_in'] ?? null,
             'token_type' => $signInResponse['token_type'] ?? 'bearer',
         ], 201);
-    }
-
-    public function signIn(Request $request)
+    }    public function signIn(Request $request)
     {
-        try {
-            $request->validate([
-                'email' => 'required|email',
-                'password' => 'required|string',
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['errors' => $e->errors()], 422);
-        }
+        $validatedData = $this->validate($request, [
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
 
         $response = $this->supabase->signInWithPassword(
-            $request->input('email'),
-            $request->input('password')
+            $validatedData['email'],
+            $validatedData['password']
         );
 
         if (!$response || !isset($response['access_token'])) {
@@ -90,19 +78,13 @@ class AuthController extends Controller
             'expires_in' => $response['expires_in'] ?? null,
             'token_type' => $response['token_type'] ?? 'bearer',
         ]);
-    }
-
-    public function refreshToken(Request $request)
+    }    public function refreshToken(Request $request)
     {
-        try {
-            $request->validate([
-                'refresh_token' => 'required|string',
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['errors' => $e->errors()], 422);
-        }
+        $validatedData = $this->validate($request, [
+            'refresh_token' => 'required|string',
+        ]);
 
-        $response = $this->supabase->refreshAccessToken($request->input('refresh_token'));
+        $response = $this->supabase->refreshAccessToken($validatedData['refresh_token']);
 
         if (!$response || !isset($response['access_token'])) {
             return response()->json(['error' => 'Failed to refresh token or invalid refresh token.'], 401);

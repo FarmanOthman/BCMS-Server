@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DailySalesReport;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class DailySalesReportController extends Controller
 {
@@ -17,15 +16,11 @@ class DailySalesReportController extends Controller
      */
     public function show(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validated = $this->validate($request, [
             'date' => 'required|date_format:Y-m-d',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $report = DailySalesReport::where('report_date', $request->date)->first();
+        $report = DailySalesReport::where('report_date', $validated['date'])->first();
 
         if (!$report) {
             return response()->json(['message' => 'No daily report found for this date.'], 404);

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\YearlySalesReport;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class YearlySalesReportController extends Controller
 {
@@ -17,15 +16,11 @@ class YearlySalesReportController extends Controller
      */
     public function show(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validated = $this->validate($request, [
             'year' => 'required|integer|min:1900|max:2100',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $report = YearlySalesReport::find($request->year);
+        $report = YearlySalesReport::find($validated['year']);
 
         if (!$report) {
             return response()->json(['message' => 'No yearly report found for this year.'], 404);

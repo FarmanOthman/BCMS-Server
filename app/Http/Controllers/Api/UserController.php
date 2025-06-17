@@ -14,29 +14,11 @@ use Exception; // Import base Exception class
 
 class UserController extends Controller
 {
-    protected SupabaseService $supabaseService;
-
-    public function __construct(SupabaseService $supabaseService)
+    protected SupabaseService $supabaseService;    public function __construct(SupabaseService $supabaseService)
     {
         $this->supabaseService = $supabaseService;
-        // Middleware are now applied in routes/api.php
-        // $this->middleware('auth:sanctum')->only('createUser');
-        // $this->middleware('can:create,App\Models\User')->only('createUser');
-    }
-
-    /**
-     * Helper to check if the current user is a manager.
-     */
-    protected function ensureManager(Request $request)
-    {
-        $token = $request->bearerToken();
-        if (!$token) {
-            abort(401, 'Unauthenticated.');
-        }
-        $user = $this->supabaseService->getUserByAccessToken($token);
-        if (!$user || (isset($user['role']) && $user['role'] !== 'Manager')) {
-            abort(403, 'Forbidden: Manager access required.');
-        }
+        // Middleware are applied in routes/api.php
+        // No need for manual checks in controller methods
     }    /**
      * Create a new user.
      *
@@ -45,8 +27,7 @@ class UserController extends Controller
      */
     public function createUser(CreateUserRequest $request): JsonResponse
     {
-        $this->ensureManager($request);
-
+        // No need for ensureManager, the route middleware handles this
         $validatedData = $request->validated();
 
         try {

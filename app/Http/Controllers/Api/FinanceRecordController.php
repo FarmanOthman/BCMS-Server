@@ -4,12 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\FinanceRecord; // Correctly import the FinanceRecord model
+use App\Models\FinanceRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Log; // Ensure Log facade is imported
+use Illuminate\Support\Facades\Log;
 
 class FinanceRecordController extends Controller
 {
@@ -65,28 +63,24 @@ class FinanceRecordController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validated = $this->validate($request, [
             'type' => 'required|string|max:255',
             'category' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
             'description' => 'nullable|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
         try {
-            $financeRecord = DB::transaction(function () use ($request, $validator) {
+            $financeRecord = DB::transaction(function () use ($validated) {
                 DB::statement("select set_config('request.jwt.claims', :claims, true)", [
                     'claims' => json_encode(['sub' => Auth::id()]),
                 ]);
 
-                $validatedData = $validator->validated();
-                $validatedData['created_by'] = Auth::id();
-                $validatedData['updated_by'] = Auth::id();
+                $recordData = $validated;
+                $recordData['created_by'] = Auth::id();
+                $recordData['updated_by'] = Auth::id();
 
-                return FinanceRecord::create($validatedData);
+                return FinanceRecord::create($recordData);
             });
 
             return response()->json($financeRecord->load(['createdBy', 'updatedBy']), 201);
@@ -121,32 +115,30 @@ class FinanceRecordController extends Controller
     public function update(Request $request, string $id)
     {
         try {
-            $financeRecord = DB::transaction(function () use ($request, $id) {
-                $currentRecord = FinanceRecord::findOrFail($id);
-                
+            $financeRecord = FinanceRecord::findOrFail($id);
+            
+            $validated = $this->validate($request, [
+                'type' => 'sometimes|required|string|max:255',
+                'category' => 'sometimes|required|string|max:255',
+                'amount' => 'sometimes|required|numeric|min:0',
+                'description' => 'nullable|string',
+            ]);
+            
+            $financeRecord = DB::transaction(function () use ($financeRecord, $validated) {
                 DB::statement("select set_config('request.jwt.claims', :claims, true)", [
                     'claims' => json_encode(['sub' => Auth::id()]),
                 ]);
-
-                $validator = Validator::make($request->all(), [
-                    'type' => 'sometimes|required|string|max:255',
-                    'category' => 'sometimes|required|string|max:255',
-                    'amount' => 'sometimes|required|numeric|min:0',
-                    'description' => 'nullable|string',
-                ]);
-        
-                if ($validator->fails()) {
-                    throw new \Illuminate\Validation\ValidationException($validator);
-                }
-        
-                $updateData = $validator->validated();
+    
+                $updateData = $validated;
                 $updateData['updated_by'] = Auth::id();
-        
-                $currentRecord->update($updateData);
-                return $currentRecord;
+    
+                $financeRecord->update($updateData);
+                return $financeRecord;
             });
             
             return response()->json($financeRecord->load(['createdBy', 'updatedBy']));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Finance record not found'], 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
         } catch (\Illuminate\Database\QueryException $e) {
@@ -178,6 +170,8 @@ class FinanceRecordController extends Controller
             });
 
             return response()->json(['message' => 'Finance record deleted successfully'], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Finance record not found'], 404);
         } catch (\Illuminate\Database\QueryException $e) {
             if (str_contains($e->getMessage(), 'Missing or empty request.jwt.claims')) {
                  return response()->json(['error' => 'Failed to delete finance record due to authentication context issue. Please try again.', 'details' => $e->getMessage()], 500);
