@@ -43,11 +43,11 @@ class GenerateDailySalesReport extends Command
                     ['report_date' => $targetDate->toDateString()],
                     [
                         'total_sales' => 0,
-                        'total_revenue' => 0,
-                        'total_profit' => 0,
-                        'avg_profit_per_sale' => 0,
+                        'total_revenue' => 0.00,
+                        'total_profit' => 0.00,
+                        'avg_profit_per_sale' => 0.00,
                         'most_profitable_car_id' => null,
-                        'highest_single_profit' => 0,
+                        'highest_single_profit' => 0.00,
                         // 'created_by' and 'updated_by' could be set to a system user ID if available
                     ]
                 );
@@ -60,6 +60,20 @@ class GenerateDailySalesReport extends Command
             $totalProfit = $salesForDate->sum('profit_loss');
             $avgProfitPerSale = $totalSales > 0 ? $totalProfit / $totalSales : 0;
 
+            // Debug information
+            $this->info("Calculation Details:");
+            foreach ($salesForDate as $sale) {
+                $car = $sale->car;
+                $this->info("- Sale: {$car->year} {$car->make->name} {$car->model->name}");
+                $this->info("  Sale Price: \${$sale->sale_price}, Cost: \${$sale->purchase_cost}, Profit: \${$sale->profit_loss}");
+            }
+            
+            $this->info("Summary:");
+            $this->info("- Total Sales: {$totalSales}");
+            $this->info("- Total Revenue: \$" . round((float)$totalRevenue, 2));
+            $this->info("- Total Profit: \$" . round((float)$totalProfit, 2));
+            $this->info("- Average Profit per Sale: \$" . round((float)$avgProfitPerSale, 2));
+
             $mostProfitableSale = $salesForDate->sortByDesc('profit_loss')->first();
             $mostProfitableCarId = $mostProfitableSale ? $mostProfitableSale->car_id : null;
             $highestSingleProfit = $mostProfitableSale ? $mostProfitableSale->profit_loss : 0;
@@ -71,11 +85,11 @@ class GenerateDailySalesReport extends Command
                     ['report_date' => $targetDate->toDateString()],
                     [
                         'total_sales' => $totalSales,
-                        'total_revenue' => $totalRevenue,
-                        'total_profit' => $totalProfit,
-                        'avg_profit_per_sale' => $avgProfitPerSale,
+                        'total_revenue' => round((float)$totalRevenue, 2),
+                        'total_profit' => round((float)$totalProfit, 2),
+                        'avg_profit_per_sale' => round((float)$avgProfitPerSale, 2),
                         'most_profitable_car_id' => $mostProfitableCarId,
-                        'highest_single_profit' => $highestSingleProfit,
+                        'highest_single_profit' => round((float)$highestSingleProfit, 2),
                         // Consider setting 'created_by' and 'updated_by' if you have a system user
                         // For example: 'created_by' => User::where('role', 'System')->first()->id,
                     ]
