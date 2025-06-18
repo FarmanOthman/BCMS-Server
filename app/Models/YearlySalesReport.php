@@ -12,9 +12,7 @@ class YearlySalesReport extends Model
     protected $table = 'yearlysalesreport';
     protected $primaryKey = 'year';
     public $incrementing = false;
-    protected $keyType = 'integer';
-
-    protected $fillable = [
+    protected $keyType = 'integer';    protected $fillable = [
         'year',
         'total_sales',
         'total_revenue',
@@ -24,11 +22,11 @@ class YearlySalesReport extends Model
         'best_month_profit',
         'profit_margin',
         'yoy_growth',
+        'total_finance_cost',
+        'total_net_profit',
         'created_by',
         'updated_by',
-    ];
-
-    protected $casts = [
+    ];    protected $casts = [
         'year' => 'integer',
         'best_month' => 'integer',
         'created_at' => 'datetime',
@@ -39,6 +37,8 @@ class YearlySalesReport extends Model
         'best_month_profit' => 'decimal:2',
         'profit_margin' => 'decimal:2',
         'yoy_growth' => 'decimal:2',
+        'total_finance_cost' => 'decimal:2',
+        'total_net_profit' => 'decimal:2',
     ];
 
     public function createdBy()

@@ -11,9 +11,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 it('migrates the yearlysalesreport table correctly', function () {
-    expect(Schema::hasTable('yearlysalesreport'))->toBeTrue();
-
-    expect(Schema::hasColumns('yearlysalesreport', [
+    expect(Schema::hasTable('yearlysalesreport'))->toBeTrue();    expect(Schema::hasColumns('yearlysalesreport', [
         'year',
         'total_sales',
         'total_revenue',
@@ -22,6 +20,9 @@ it('migrates the yearlysalesreport table correctly', function () {
         'best_month',
         'best_month_profit',
         'profit_margin',
+        'yoy_growth',
+        'total_finance_cost',
+        'total_net_profit',
         'created_by',
         'updated_by',
         'created_at',

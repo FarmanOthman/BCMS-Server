@@ -50,8 +50,9 @@ class GenerateYearlySalesReport extends Command
                         'best_month' => null,
                         'best_month_profit' => 0,
                         'profit_margin' => 0,
-                        'yoy_growth' => null, // Year-over-Year growth, null if no previous year data
-                        // 'created_by' and 'updated_by' could be set to a system user ID
+                        'yoy_growth' => 0, // Default to 0 for first year
+                        'total_finance_cost' => 0,
+                        'total_net_profit' => 0,
                     ]
                 );
                 $this->info("Empty yearly sales report generated successfully for {$targetYear}");
@@ -61,6 +62,8 @@ class GenerateYearlySalesReport extends Command
             $totalSales = $monthlyReports->sum('total_sales');
             $totalRevenue = $monthlyReports->sum('total_revenue');
             $totalProfit = $monthlyReports->sum('total_profit');
+            $totalFinanceCost = $monthlyReports->sum('finance_cost');
+            $totalNetProfit = $monthlyReports->sum('net_profit');
             
             $numberOfMonthsWithReports = $monthlyReports->count();
             $avgMonthlyProfit = $numberOfMonthsWithReports > 0 ? $totalProfit / $numberOfMonthsWithReports : 0;
@@ -72,7 +75,7 @@ class GenerateYearlySalesReport extends Command
             $profitMargin = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
 
             // Calculate Year-over-Year (YoY) growth if possible
-            $yoyGrowth = null;
+            $yoyGrowth = 0; // Default to 0 instead of null
             $previousYearReport = YearlySalesReport::find($targetYear - 1);
             if ($previousYearReport && $previousYearReport->total_profit > 0) {
                 $yoyGrowth = (($totalProfit - $previousYearReport->total_profit) / $previousYearReport->total_profit) * 100;
@@ -80,24 +83,45 @@ class GenerateYearlySalesReport extends Command
                 $yoyGrowth = 100.0; // Or some indicator of growth from zero
             }
 
-            DB::transaction(function () use ($targetYear, $totalSales, $totalRevenue, $totalProfit, $avgMonthlyProfit, $bestMonth, $bestMonthProfit, $profitMargin, $yoyGrowth) {
+            $this->info("\nFinal Yearly Report Calculations:");
+            $this->info("  Total Sales: {$totalSales}");
+            $this->info("  Total Revenue: \${$totalRevenue}");
+            $this->info("  Total Profit (before finance): \${$totalProfit}");
+            $this->info("  Total Finance Cost: \${$totalFinanceCost}");
+            $this->info("  Total Net Profit (after finance): \${$totalNetProfit}");
+            $this->info("  Average Monthly Profit: \${$avgMonthlyProfit}");
+            $this->info("  Best Month: {$bestMonth} with \${$bestMonthProfit} profit");
+            $this->info("  Profit Margin: {$profitMargin}%");
+            $this->info("  Year-over-Year Growth: " . round((float)$yoyGrowth, 2) . "%");
+
+            DB::transaction(function () use ($targetYear, $totalSales, $totalRevenue, $totalProfit, $avgMonthlyProfit, $bestMonth, $bestMonthProfit, $profitMargin, $yoyGrowth, $totalFinanceCost, $totalNetProfit) {
                 YearlySalesReport::updateOrCreate(
                     ['year' => $targetYear],
                     [
                         'total_sales' => $totalSales,
-                        'total_revenue' => $totalRevenue,
-                        'total_profit' => $totalProfit,
-                        'avg_monthly_profit' => $avgMonthlyProfit,
+                        'total_revenue' => round((float)$totalRevenue, 2),
+                        'total_profit' => round((float)$totalProfit, 2),
+                        'avg_monthly_profit' => round((float)$avgMonthlyProfit, 2),
                         'best_month' => $bestMonth,
-                        'best_month_profit' => $bestMonthProfit,
-                        'profit_margin' => $profitMargin,
-                        'yoy_growth' => $yoyGrowth,
-                        // 'created_by' and 'updated_by'
+                        'best_month_profit' => round((float)$bestMonthProfit, 2),
+                        'profit_margin' => round((float)$profitMargin, 2),
+                        'yoy_growth' => round((float)$yoyGrowth, 2),
+                        'total_finance_cost' => round((float)$totalFinanceCost, 2),
+                        'total_net_profit' => round((float)$totalNetProfit, 2),
                     ]
                 );
             });
 
             $this->info("Yearly sales report generated successfully for {$targetYear}");
+            $this->info("Summary:");
+            $this->info("- Total Sales: {$totalSales}");
+            $this->info("- Total Revenue: \$" . round((float)$totalRevenue, 2));
+            $this->info("- Total Profit (before finance): \$" . round((float)$totalProfit, 2));
+            $this->info("- Total Finance Cost: \$" . round((float)$totalFinanceCost, 2));
+            $this->info("- Total Net Profit (after finance): \$" . round((float)$totalNetProfit, 2));
+            $this->info("- Average Monthly Profit: \$" . round((float)$avgMonthlyProfit, 2));
+            $this->info("- Profit Margin: " . round((float)$profitMargin, 2) . "%");
+            $this->info("- Year-over-Year Growth: " . round((float)$yoyGrowth, 2) . "%");
             return 0;
 
         } catch (\Exception $e) {
