@@ -42,9 +42,9 @@ Route::prefix('bcms')->group(function () {
     // CRUD operations for Cars - Restricted to Managers
     Route::apiResource('/cars', CarController::class)->middleware(['role:Manager']);
 
-    // API resources for Makes and Models, restricted to Managers
-    Route::apiResource('/makes', MakeController::class)->middleware(['role:Manager']);
-    Route::apiResource('/models', ModelController::class)->middleware(['role:Manager']);
+    // API resources for Makes and Models, accessible to Manager and User roles
+    Route::apiResource('/makes', MakeController::class)->middleware(['role:Manager,User']);
+    Route::apiResource('/models', ModelController::class)->middleware(['role:Manager,User']);
 
     // API resource for Buyers, restricted to Managers (or other appropriate roles)
     Route::apiResource('/buyers', BuyerController::class)->middleware(['role:Manager']); // Adjust role as needed

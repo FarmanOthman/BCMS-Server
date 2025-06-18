@@ -23,8 +23,9 @@ class CheckRole
      * Handle an incoming request.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param string ...$roles
      */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, ...$roles): Response
     {
         $token = $request->bearerToken();
         
@@ -44,12 +45,12 @@ class CheckRole
         Log::info('User data retrieved', ['email' => $userData['email'] ?? 'unknown', 'role' => $userData['role'] ?? 'unknown']);
         
         // Check if the user has the required role
-        if (!isset($userData['role']) || $userData['role'] !== $role) {
+        if (!isset($userData['role']) || !in_array($userData['role'], $roles)) {
             Log::warning('User does not have required role', [
-                'required' => $role,
+                'required' => implode(', ', $roles),
                 'actual' => $userData['role'] ?? 'none'
             ]);
-            return response()->json(['message' => 'Unauthorized. Requires ' . $role . ' role.'], 403);
+            return response()->json(['message' => 'Unauthorized. Requires one of the following roles: ' . implode(', ', $roles) . '.'], 403);
         }
         
         // User has required role, proceed
