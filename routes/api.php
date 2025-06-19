@@ -72,7 +72,12 @@ Route::prefix('bcms')->group(function () {
         Route::delete('/monthly/{year}/{month}', [MonthlySalesReportController::class, 'destroy']);
         
         // Yearly Reports
+        Route::get('/yearly-reports', [YearlySalesReportController::class, 'index']);
         Route::get('/yearly', [YearlySalesReportController::class, 'show']);
+        Route::post('/yearly', [YearlySalesReportController::class, 'store']);
+        Route::put('/yearly/{year}', [YearlySalesReportController::class, 'update']);
+        Route::delete('/yearly/{year}', [YearlySalesReportController::class, 'destroy']);
+        Route::post('/yearly/generate', [YearlySalesReportController::class, 'generateReport']);
     });
 
     // API resource for Finance Records, restricted to Managers
