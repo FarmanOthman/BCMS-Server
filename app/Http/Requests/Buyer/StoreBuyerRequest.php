@@ -9,12 +9,10 @@ class StoreBuyerRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
+     */    public function authorize(): bool
     {
-        // Assuming any authenticated user with appropriate role (e.g., manager, salesperson) can create a buyer.
-        // Adjust based on your authorization logic (e.g., check for specific roles/permissions).
-        return Auth::check(); 
+        // Authorization is handled by the route middleware, so always return true here
+        return true;
     }
 
     /**

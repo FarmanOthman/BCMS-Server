@@ -10,12 +10,10 @@ class UpdateBuyerRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
+     */    public function authorize(): bool
     {
-        // Assuming any authenticated user with appropriate role can update a buyer.
-        // Adjust based on your authorization logic.
-        return Auth::check();
+        // Authorization is handled by the route middleware, so always return true here
+        return true;
     }
 
     /**

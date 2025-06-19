@@ -9,7 +9,6 @@ use App\Models\Buyer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class BuyerController extends Controller
 {
@@ -97,8 +96,7 @@ class BuyerController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     */
-    public function destroy(string $id): JsonResponse
+     */    public function destroy(string $id): JsonResponse
     {
         $buyer = Buyer::find($id);
         if (!$buyer) {
@@ -107,6 +105,6 @@ class BuyerController extends Controller
 
         $buyer->delete();
 
-        return response()->json(['message' => 'Buyer deleted successfully']);
+        return response()->json(null, 204);
     }
 }

@@ -46,8 +46,8 @@ Route::prefix('bcms')->group(function () {
     Route::apiResource('/makes', MakeController::class)->middleware(['role:Manager,User']);
     Route::apiResource('/models', ModelController::class)->middleware(['role:Manager,User']);
 
-    // API resource for Buyers, restricted to Managers (or other appropriate roles)
-    Route::apiResource('/buyers', BuyerController::class)->middleware(['role:Manager']); // Adjust role as needed
+    // API resource for Buyers, accessible to Manager and User roles
+    Route::apiResource('/buyers', BuyerController::class)->middleware(['role:Manager,User']);
 
     // API resource for Sales, restricted to Managers
     Route::apiResource('/sales', SaleController::class)->middleware(['role:Manager']);
