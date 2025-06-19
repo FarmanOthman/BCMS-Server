@@ -21,9 +21,10 @@ return new class extends Migration
             $table->decimal('total_revenue', 15, 2)->default(0);
             $table->decimal('total_profit', 15, 2)->default(0);
             $table->decimal('avg_daily_profit', 15, 2)->default(0);
-            $table->date('best_day')->nullable();
-            $table->decimal('best_day_profit', 15, 2)->nullable();
+            $table->date('best_day')->nullable();            $table->decimal('best_day_profit', 15, 2)->nullable();
             $table->decimal('profit_margin', 5, 2)->nullable(); // Assuming percentage, e.g., 999.99%
+            $table->decimal('finance_cost', 15, 2)->default(0);
+            $table->decimal('net_profit', 15, 2)->default(0);
 
             // Timestamps
             if (DB::getDriverName() === 'pgsql') {
