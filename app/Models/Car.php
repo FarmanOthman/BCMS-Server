@@ -20,12 +20,11 @@ class Car extends Model
         'make_id',
         'model_id',
         'year',
-        'base_price',
+        'cost_price',
         'public_price', // Added public_price
         'sold_price',
         'transition_cost',
         'status',        'vin',
-        'metadata',
         'repair_items', // JSON field for individual repair items
         'total_repair_cost', // Calculated total of repair_costs
         'created_by', // Assuming these are set programmatically
@@ -39,11 +38,10 @@ class Car extends Model
      */
     protected $casts = [
         'year' => 'integer',
-        'base_price' => 'decimal:2',
+        'cost_price' => 'decimal:2',
         'public_price' => 'decimal:2', // Added public_price cast
         'sold_price' => 'decimal:2',        'transition_cost' => 'decimal:2',
         'total_repair_cost' => 'decimal:2', // Cast for the new column
-        'metadata' => 'array', // Changed from json to array for easier handling in Laravel
         'repair_items' => 'array', // Changed from json to array
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

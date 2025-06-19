@@ -36,11 +36,14 @@ Route::prefix('bcms')->group(function () {
     // Get current user info (requires authentication) - middleware removed
     Route::get('/auth/user', [AuthController::class, 'getUser']);
     
-    // Public endpoint for listing cars (index already exists)
-    // Route::get('/cars', [CarController::class, 'index']); // This was already present
+    // Public endpoints for listing and viewing cars
+    Route::get('/cars', [CarController::class, 'index']);
+    Route::get('/cars/{car}', [CarController::class, 'show']);
 
-    // CRUD operations for Cars - Restricted to Managers
-    Route::apiResource('/cars', CarController::class)->middleware(['role:Manager']);
+    // Other Car operations - Accessible to Manager and User roles
+    Route::apiResource('/cars', CarController::class)
+        ->except(['index', 'show'])
+        ->middleware(['role:Manager,User']);
 
     // API resources for Makes and Models, accessible to Manager and User roles
     Route::apiResource('/makes', MakeController::class)->middleware(['role:Manager,User']);
