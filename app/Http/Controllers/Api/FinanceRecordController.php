@@ -62,11 +62,11 @@ class FinanceRecordController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        $validated = $this->validate($request, [
+    {        $validated = $this->validate($request, [
             'type' => 'required|string|max:255',
             'category' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0',
+            'cost' => 'required|numeric|min:0',
+            'record_date' => 'required|date',
             'description' => 'nullable|string',
         ]);
 
@@ -117,10 +117,10 @@ class FinanceRecordController extends Controller
         try {
             $financeRecord = FinanceRecord::findOrFail($id);
             
-            $validated = $this->validate($request, [
-                'type' => 'sometimes|required|string|max:255',
+            $validated = $this->validate($request, [                'type' => 'sometimes|required|string|max:255',
                 'category' => 'sometimes|required|string|max:255',
-                'amount' => 'sometimes|required|numeric|min:0',
+                'cost' => 'sometimes|required|numeric|min:0',
+                'record_date' => 'sometimes|required|date',
                 'description' => 'nullable|string',
             ]);
             
