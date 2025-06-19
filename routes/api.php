@@ -56,9 +56,18 @@ Route::prefix('bcms')->group(function () {
     Route::apiResource('/sales', SaleController::class)->middleware(['role:Manager']);
 
     // Report Routes - Restricted to Managers (or other appropriate roles)
-    Route::get('/reports/daily', [DailySalesReportController::class, 'show'])->middleware(['role:Manager']);
-    Route::get('/reports/monthly', [MonthlySalesReportController::class, 'show'])->middleware(['role:Manager']);
-    Route::get('/reports/yearly', [YearlySalesReportController::class, 'show'])->middleware(['role:Manager']);
+    Route::prefix('reports')->middleware(['role:Manager'])->group(function () {
+        // Daily Reports
+        Route::get('/daily', [DailySalesReportController::class, 'show']);
+        Route::get('/daily/list', [DailySalesReportController::class, 'index']);
+        Route::post('/daily', [DailySalesReportController::class, 'store']);
+        Route::put('/daily/{date}', [DailySalesReportController::class, 'update']);
+        Route::delete('/daily/{date}', [DailySalesReportController::class, 'destroy']);
+        
+        // Other reports
+        Route::get('/monthly', [MonthlySalesReportController::class, 'show']);
+        Route::get('/yearly', [YearlySalesReportController::class, 'show']);
+    });
 
     // API resource for Finance Records, restricted to Managers
     Route::apiResource('/finance-records', FinanceRecordController::class)->middleware(['role:Manager']);
