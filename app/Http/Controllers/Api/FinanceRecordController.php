@@ -70,6 +70,11 @@ class FinanceRecordController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        // If record_date is not provided, default to today
+        if (!isset($validated['record_date'])) {
+            $validated['record_date'] = now()->format('Y-m-d');
+        }
+
         try {
             $financeRecord = DB::transaction(function () use ($validated) {
                 DB::statement("select set_config('request.jwt.claims', :claims, true)", [
@@ -123,6 +128,8 @@ class FinanceRecordController extends Controller
                 'record_date' => 'sometimes|required|date',
                 'description' => 'nullable|string',
             ]);
+            
+            // If record_date is not provided, do not change it
             
             $financeRecord = DB::transaction(function () use ($financeRecord, $validated) {
                 DB::statement("select set_config('request.jwt.claims', :claims, true)", [

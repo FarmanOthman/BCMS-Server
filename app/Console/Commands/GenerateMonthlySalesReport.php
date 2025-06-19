@@ -65,6 +65,7 @@ class GenerateMonthlySalesReport extends Command
                         'best_day_profit' => 0,
                         'profit_margin' => 0,
                         'finance_cost' => 0,
+                        'total_finance_cost' => 0,
                         'net_profit' => 0
                         // user ID fields will be auto-filled by Laravel's observer/middleware
                     ]
@@ -135,6 +136,7 @@ class GenerateMonthlySalesReport extends Command
                         'best_day_profit' => round((float)$bestDayProfit, 2),
                         'profit_margin' => round((float)$profitMargin, 2),
                         'finance_cost' => round((float)$financeCost, 2),
+                        'total_finance_cost' => round((float)$financeCost, 2), // Set total_finance_cost equal to finance_cost
                         'net_profit' => round((float)$netProfit, 2)
                         // user ID fields will be auto-filled by Laravel's observer/middleware
                     ]

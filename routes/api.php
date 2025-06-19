@@ -64,8 +64,14 @@ Route::prefix('bcms')->group(function () {
         Route::put('/daily/{date}', [DailySalesReportController::class, 'update']);
         Route::delete('/daily/{date}', [DailySalesReportController::class, 'destroy']);
         
-        // Other reports
+        // Monthly Reports
         Route::get('/monthly', [MonthlySalesReportController::class, 'show']);
+        Route::get('/monthly/list', [MonthlySalesReportController::class, 'index']);
+        Route::post('/monthly', [MonthlySalesReportController::class, 'store']);
+        Route::put('/monthly/{year}/{month}', [MonthlySalesReportController::class, 'update']);
+        Route::delete('/monthly/{year}/{month}', [MonthlySalesReportController::class, 'destroy']);
+        
+        // Yearly Reports
         Route::get('/yearly', [YearlySalesReportController::class, 'show']);
     });
 

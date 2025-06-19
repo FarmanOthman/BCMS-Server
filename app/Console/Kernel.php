@@ -9,6 +9,7 @@ use App\Console\Commands\GenerateDailySalesReport;
 use App\Console\Commands\GenerateMonthlySalesReport; // Added import for Monthly Report
 use App\Console\Commands\GenerateYearlySalesReport; // Added import for Yearly Report
 use App\Console\Commands\TestSalesReports; // Added import for test command
+use App\Console\Commands\UpdateMonthlyFinanceCosts; // Added import for updating finance costs
 
 class Kernel extends ConsoleKernel
 {
@@ -22,6 +23,7 @@ class Kernel extends ConsoleKernel
         GenerateMonthlySalesReport::class, // Register the Monthly Report command
         GenerateYearlySalesReport::class, // Register the Yearly Report command
         TestSalesReports::class, // Register the test command
+        UpdateMonthlyFinanceCosts::class, // Register the finance cost update command
     ];
 
     /**
