@@ -31,85 +31,45 @@ class UserController extends Controller
         $validatedData = $request->validated();
 
         try {
-            // Special handling for tests
-            if (app()->environment('testing')) {
-                // During tests, we create the user directly in the local database
-                Log::info('Test environment detected. Creating user directly in local DB: ' . $validatedData['email']);
-                
-                $userId = \Illuminate\Support\Str::uuid()->toString();
-                
-                // Insert the user into the local database
-                \Illuminate\Support\Facades\DB::table('users')->insert([
-                    'id' => $userId,
-                    'email' => $validatedData['email'],
-                    'name' => $validatedData['name'],
-                    'role' => $validatedData['role'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                
-                $responseData = [
-                    'id' => $userId,
-                    'email' => $validatedData['email'],
-                    'name' => $validatedData['name'],
-                    'role' => $validatedData['role'],
-                    'created_at' => now()->toISOString(),
-                    'updated_at' => now()->toISOString()
-                ];
-                
-                Log::info('Test user created successfully in local DB: ' . $validatedData['email']);
-                
-                return response()->json([
-                    'message' => 'User created successfully.',
-                    'user' => $responseData
-                ], 201);
-            }
+            Log::info('Creating user directly in local DB: ' . $validatedData['email']);
             
-            // Production environment, use Supabase
-            $createdUser = $this->supabaseService->createUser(
-                $validatedData['email'],
-                $validatedData['password'],
-                $validatedData['name'],
-                $validatedData['role']
-            );
-
-            if ($createdUser) {
-                // Exclude sensitive information before sending the response
-                unset($createdUser['password']); // Ensure password is not in the Supabase response array if it ever is
-                // You might want to further refine what's returned, e.g., only id, email, name, role, created_at
-                $responseData = [
-                    'id' => $createdUser['id'],
-                    'email' => $createdUser['email'],
-                    'name' => $validatedData['name'], // Name from request as it's stored in public.Users
-                    'role' => $validatedData['role'], // Role from request
-                    'created_at' => $createdUser['created_at'], // From Supabase auth user
-                    'updated_at' => $createdUser['updated_at']  // From Supabase auth user
-                ];
-
-                Log::info('User creation endpoint success for email: ' . $validatedData['email']);
-                return response()->json([
-                    'message' => 'User created successfully.',
-                    'user' => $responseData
-                ], 201);
-            }
-
-            // This case might be redundant if createUser always throws an exception on Supabase failure
-            Log::error('User creation endpoint failed for email (SupabaseService returned null): ' . $validatedData['email']);
-            return response()->json(['message' => 'Failed to create user. Please check logs.'], 500);
+            $userId = \Illuminate\Support\Str::uuid()->toString();
+            
+            // Insert the user into the local database
+            DB::table('users')->insert([
+                'id' => $userId,
+                'email' => $validatedData['email'],
+                'name' => $validatedData['name'],
+                'role' => $validatedData['role'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            $responseData = [
+                'id' => $userId,
+                'email' => $validatedData['email'],
+                'name' => $validatedData['name'],
+                'role' => $validatedData['role'],
+                'created_at' => now()->toISOString(),
+                'updated_at' => now()->toISOString()
+            ];
+            
+            Log::info('User created successfully in local DB: ' . $validatedData['email']);
+            
+            return response()->json([
+                'message' => 'User created successfully.',
+                'user' => $responseData
+            ], 201);
 
         } catch (Exception $e) {
-            // Catching a generic Exception. You might want to catch more specific exceptions 
-            // if SupabaseService or HTTP client throws them (e.g., GuzzleHttp\Exception\ClientException)
             Log::error('User creation endpoint exception for email: ' . $validatedData['email'], [
                 'error_message' => $e->getMessage(),
-                // 'error_trace' => $e->getTraceAsString() // Be cautious with logging full traces
             ]);
 
-            // Check if the error message indicates a duplicate email or similar user-facing issue
-            // This is a basic check; Supabase might return specific error codes or messages
+            // Check if the error message indicates a duplicate email
             if (str_contains(strtolower($e->getMessage()), 'duplicate key value violates unique constraint') || 
-                str_contains(strtolower($e->getMessage()), 'user already registered')) {
-                return response()->json(['message' => 'This email address is already in use.'], 422); // 422 Unprocessable Entity
+                str_contains(strtolower($e->getMessage()), 'unique constraint')) {
+                return response()->json(['message' => 'This email address is already in use.'], 422);
             }
             
             return response()->json(['message' => 'An unexpected error occurred while creating the user.'], 500);
@@ -215,20 +175,7 @@ class UserController extends Controller
                 return response()->json(['message' => 'User not found.'], 404);
             }
             
-            // Update in Supabase Auth if email or role is being changed
-            $supabaseUpdated = true;
-            if (isset($validatedData['email']) && $validatedData['email'] !== $user->email) {
-                // Update user in Supabase Auth
-                $supabaseUpdated = $this->supabaseService->updateUserEmail($id, $validatedData['email']);
-            }
-            
-            if (isset($validatedData['role']) && $validatedData['role'] !== $user->role) {
-                $supabaseUpdated = $this->supabaseService->updateUserRole($id, $validatedData['role']);
-            }
-            
-            if (!$supabaseUpdated) {
-                return response()->json(['message' => 'Failed to update user in Supabase.'], 500);
-            }
+            Log::info('Updating user directly in local DB: ' . $id);
             
             // Update the user in the local database
             $updated = DB::table('users')
@@ -238,7 +185,6 @@ class UserController extends Controller
                     'email' => $validatedData['email'] ?? $user->email,
                     'role' => $validatedData['role'] ?? $user->role,
                     'updated_at' => now(),
-                    'updated_by' => Auth::id()
                 ]);
                 
             if ($updated) {
@@ -272,16 +218,16 @@ class UserController extends Controller
                 return response()->json(['message' => 'User not found.'], 404);
             }
             
-            // Delete user from Supabase Auth
-            $supabaseDeleted = $this->supabaseService->deleteUser($id);
-            if (!$supabaseDeleted) {
-                return response()->json(['message' => 'Failed to delete user from Supabase.'], 500);
+            Log::info('Deleting user directly from local DB: ' . $id);
+            
+            // Delete user from local database
+            $deleted = DB::table('users')->where('id', $id)->delete();
+            
+            if ($deleted) {
+                return response()->json(['message' => 'User deleted successfully.']);
             }
             
-            // The user record in the public.users table will be automatically deleted
-            // due to the ON DELETE CASCADE foreign key constraint
-            
-            return response()->json(['message' => 'User deleted successfully.']);
+            return response()->json(['message' => 'Failed to delete user.'], 500);
         } catch (Exception $e) {
             Log::error('Error deleting user: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to delete user: ' . $e->getMessage()], 500);

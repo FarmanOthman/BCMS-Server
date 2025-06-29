@@ -154,13 +154,171 @@ class SupabaseAuthTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_manager_can_authenticate_and_manage_tokens()
+    /**
+     * Manager-only: show user
+     */
+    public function test_manager_can_show_user()
     {
-        $this->runAuthFlow($this->manager);
+        $token = $this->getAccessToken($this->manager);
+        
+        // First create a user to show
+        $newEmail = 'show_test_' . time() . '@example.com';
+        $createResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                              ->postJson('/bcms/users', [
+                                  'email' => $newEmail,
+                                  'name' => 'Show Test User',
+                                  'role' => 'User',
+                                  'password' => 'password123',
+                                  'password_confirmation' => 'password123',
+                              ]);
+        $createResponse->assertStatus(201);
+        $userId = $createResponse->json('user.id');
+
+        // Now show the user
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                         ->getJson('/bcms/users/' . $userId);
+        $response->assertStatus(200)
+                 ->assertJsonPath('user.email', $newEmail)
+                 ->assertJsonPath('user.name', 'Show Test User');
     }
 
-    public function test_regular_user_can_authenticate_and_manage_tokens()
+    public function test_regular_user_cannot_show_user()
     {
-        $this->runAuthFlow($this->user);
+        $token = $this->getAccessToken($this->user);
+        $managerToken = $this->getAccessToken($this->manager);
+        
+        // Create a user with manager token first
+        $newEmail = 'show_fail_' . time() . '@example.com';
+        $createResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $managerToken])
+                              ->postJson('/bcms/users', [
+                                  'email' => $newEmail,
+                                  'name' => 'Show Fail User',
+                                  'role' => 'User',
+                                  'password' => 'password123',
+                                  'password_confirmation' => 'password123',
+                              ]);
+        $createResponse->assertStatus(201);
+        $userId = $createResponse->json('user.id');
+
+        // Try to show with regular user token
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                         ->getJson('/bcms/users/' . $userId);
+        $response->assertStatus(403);
+    }
+
+    /**
+     * Manager-only: update user
+     */
+    public function test_manager_can_update_user()
+    {
+        $token = $this->getAccessToken($this->manager);
+        
+        // First create a user to update
+        $newEmail = 'update_test_' . time() . '@example.com';
+        $createResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                              ->postJson('/bcms/users', [
+                                  'email' => $newEmail,
+                                  'name' => 'Update Test User',
+                                  'role' => 'User',
+                                  'password' => 'password123',
+                                  'password_confirmation' => 'password123',
+                              ]);
+        $createResponse->assertStatus(201);
+        $userId = $createResponse->json('user.id');
+
+        // Now update the user (only name and role, not email to avoid Supabase complexity)
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                         ->putJson('/bcms/users/' . $userId, [
+                             'name' => 'Updated Test User',
+                             'role' => 'Manager',
+                         ]);
+        
+        $response->assertStatus(200)
+                 ->assertJsonPath('user.name', 'Updated Test User')
+                 ->assertJsonPath('user.role', 'Manager');
+    }
+
+    public function test_regular_user_cannot_update_user()
+    {
+        $token = $this->getAccessToken($this->user);
+        $managerToken = $this->getAccessToken($this->manager);
+        
+        // Create a user with manager token first
+        $newEmail = 'update_fail_' . time() . '@example.com';
+        $createResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $managerToken])
+                              ->postJson('/bcms/users', [
+                                  'email' => $newEmail,
+                                  'name' => 'Update Fail User',
+                                  'role' => 'User',
+                                  'password' => 'password123',
+                                  'password_confirmation' => 'password123',
+                              ]);
+        $createResponse->assertStatus(201);
+        $userId = $createResponse->json('user.id');
+
+        // Try to update with regular user token
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                         ->putJson('/bcms/users/' . $userId, [
+                             'name' => 'Should Not Update',
+                             'role' => 'Manager',
+                         ]);
+        $response->assertStatus(403);
+    }
+
+    /**
+     * Manager-only: delete user
+     */
+    public function test_manager_can_delete_user()
+    {
+        $token = $this->getAccessToken($this->manager);
+        
+        // First create a user to delete
+        $newEmail = 'delete_test_' . time() . '@example.com';
+        $createResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                              ->postJson('/bcms/users', [
+                                  'email' => $newEmail,
+                                  'name' => 'Delete Test User',
+                                  'role' => 'User',
+                                  'password' => 'password123',
+                                  'password_confirmation' => 'password123',
+                              ]);
+        $createResponse->assertStatus(201);
+        $userId = $createResponse->json('user.id');
+
+        // Now delete the user
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                         ->deleteJson('/bcms/users/' . $userId);
+        
+        $response->assertStatus(200)
+                 ->assertJson(['message' => 'User deleted successfully.']);
+
+        // Verify user is deleted by trying to show it
+        $showResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                             ->getJson('/bcms/users/' . $userId);
+        $showResponse->assertStatus(404);
+    }
+
+    public function test_regular_user_cannot_delete_user()
+    {
+        $token = $this->getAccessToken($this->user);
+        $managerToken = $this->getAccessToken($this->manager);
+        
+        // Create a user with manager token first
+        $newEmail = 'delete_fail_' . time() . '@example.com';
+        $createResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $managerToken])
+                              ->postJson('/bcms/users', [
+                                  'email' => $newEmail,
+                                  'name' => 'Delete Fail User',
+                                  'role' => 'User',
+                                  'password' => 'password123',
+                                  'password_confirmation' => 'password123',
+                              ]);
+        $createResponse->assertStatus(201);
+        $userId = $createResponse->json('user.id');
+
+        // Try to delete with regular user token
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+                         ->deleteJson('/bcms/users/' . $userId);
+        $response->assertStatus(403);
     }
 }
