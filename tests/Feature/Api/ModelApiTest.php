@@ -4,76 +4,59 @@ namespace Tests\Feature\Api;
 
 use App\Models\Make;
 use App\Models\Model;
-use App\Models\User;
-use App\Services\SupabaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
-use Mockery;
 
 class ModelApiTest extends TestCase
 {
     use RefreshDatabase;
-    
-    protected $managerToken = 'manager-test-token';
-    protected $userToken = 'user-test-token';
-    protected $manager;
-    protected $user;
-    protected $supabaseServiceMock;
-    
+
+    // Predefined test users (same as SupabaseAuthTest and MakeApiTest)
+    protected array $manager = ['email' => 'farman@test.com', 'password' => 'password123', 'name' => 'Manager User', 'role' => 'Manager'];
+    protected array $user = ['email' => 'user@test.com', 'password' => 'password123', 'name' => 'Regular User', 'role' => 'User'];
+
     protected function setUp(): void
     {
         parent::setUp();
-        
-        // Create test users
-        $this->manager = User::factory()->create([
-            'email' => 'test-manager@example.com',
-            'role' => 'Manager',
-            'name' => 'Test Manager'
-        ]);
-        
-        $this->user = User::factory()->create([
-            'email' => 'test-user@example.com', 
-            'role' => 'User',
-            'name' => 'Test User'
-        ]);
-        
-        // Mock the SupabaseService
-        $this->supabaseServiceMock = Mockery::mock(SupabaseService::class);
-        $this->app->instance(SupabaseService::class, $this->supabaseServiceMock);
-        
-        // Setup the mock for the manager token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->managerToken)
-            ->andReturn([
-                'id' => $this->manager->id,
-                'email' => $this->manager->email,
-                'name' => $this->manager->name,
-                'role' => 'Manager'
-            ]);
+
+        // Create test users directly in the database (not via Supabase API)
+        foreach ([$this->manager, $this->user] as $account) {
+            // Create user with a UUID that mimics Supabase format
+            $userId = (string) \Illuminate\Support\Str::uuid();
             
-        // Setup the mock for the user token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->userToken)
-            ->andReturn([
-                'id' => $this->user->id,
-                'email' => $this->user->email,
-                'name' => $this->user->name,
-                'role' => 'User'
-            ]);
-            
-        // Setup the mock for invalid tokens - this will handle any other token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->withAnyArgs()
-            ->andReturnNull();
+            // Insert directly into the local database
+            DB::table('users')->updateOrInsert(
+                ['email' => $account['email']], 
+                [
+                    'id' => $userId,
+                    'email' => $account['email'],
+                    'name' => $account['name'],
+                    'role' => $account['role'],
+                    'email_verified_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
-    
-    protected function tearDown(): void
+
+    /**
+     * Helper to sign in and return an access token for a given account.
+     */
+    protected function getAccessToken(array $account): string
     {
-        Mockery::close();
-        parent::tearDown();
+        $response = $this->postJson('/bcms/auth/signin', [
+            'email' => $account['email'],
+            'password' => $account['password'],
+        ]);
+        $response->assertStatus(200);
+        return $response->json('access_token');
     }
-    
-    // Helper method to create a model with a make
+
+    /**
+     * Helper method to create a model with a make
+     */
     private function createModelWithMake($modelName = 'Test Model')
     {
         $make = Make::factory()->create();
@@ -86,16 +69,25 @@ class ModelApiTest extends TestCase
     // Test for Manager
     public function test_manager_can_get_all_models()
     {
-        // Create test models
-        Model::factory()->count(3)->create();
+        // Create test models with makes
+        $this->createModelWithMake('Model 1');
+        $this->createModelWithMake('Model 2');
+        $this->createModelWithMake('Model 3');
+
+        // Get manager token
+        $token = $this->getAccessToken($this->manager);
 
         // Make request with manager token
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->getJson('/bcms/models');
 
         $response->assertStatus(200);
         $this->assertCount(3, $response->json());
+        
+        // Check that the response includes make relationship
+        $responseData = $response->json();
+        $this->assertArrayHasKey('make', $responseData[0]);
     }
 
     public function test_manager_can_create_a_model()
@@ -106,12 +98,16 @@ class ModelApiTest extends TestCase
             'make_id' => $make->id
         ];
 
+        // Get manager token
+        $token = $this->getAccessToken($this->manager);
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->postJson('/bcms/models', $modelData);
 
         $response->assertStatus(201)
-                 ->assertJsonFragment($modelData);
+                 ->assertJsonFragment(['name' => 'Test Model'])
+                 ->assertJsonStructure(['make']); // Should include make relationship
         $this->assertDatabaseHas('models', $modelData);
     }
 
@@ -119,34 +115,49 @@ class ModelApiTest extends TestCase
     {
         $model = $this->createModelWithMake();
 
+        // Get manager token
+        $token = $this->getAccessToken($this->manager);
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->getJson('/bcms/models/' . $model->id);
 
         $response->assertStatus(200)
-                 ->assertJsonFragment(['name' => $model->name]);
+                 ->assertJsonFragment(['name' => $model->name])
+                 ->assertJsonStructure(['make']); // Should include make relationship
     }
 
     public function test_manager_can_update_a_model()
     {
         $model = $this->createModelWithMake();
-        $updatedData = ['name' => 'Updated Model Name'];
+        $newMake = Make::factory()->create();
+        $updatedData = [
+            'name' => 'Updated Model Name',
+            'make_id' => $newMake->id
+        ];
+
+        // Get manager token
+        $token = $this->getAccessToken($this->manager);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->putJson('/bcms/models/' . $model->id, $updatedData);
 
         $response->assertStatus(200)
-                 ->assertJsonFragment($updatedData);
-        $this->assertDatabaseHas('models', ['id' => $model->id, 'name' => 'Updated Model Name']);
+                 ->assertJsonFragment(['name' => 'Updated Model Name'])
+                 ->assertJsonStructure(['make']); // Should include make relationship
+        $this->assertDatabaseHas('models', $updatedData);
     }
 
     public function test_manager_can_delete_a_model()
     {
         $model = $this->createModelWithMake();
 
+        // Get manager token
+        $token = $this->getAccessToken($this->manager);
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->deleteJson('/bcms/models/' . $model->id);
 
         $response->assertStatus(204);
@@ -156,14 +167,24 @@ class ModelApiTest extends TestCase
     // Test for User
     public function test_user_can_get_all_models()
     {
-        Model::factory()->count(3)->create();
+        // Create test models with makes
+        $this->createModelWithMake('Model 1');
+        $this->createModelWithMake('Model 2');
+        $this->createModelWithMake('Model 3');
+
+        // Get user token
+        $token = $this->getAccessToken($this->user);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->userToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->getJson('/bcms/models');
 
         $response->assertStatus(200);
         $this->assertCount(3, $response->json());
+        
+        // Check that the response includes make relationship
+        $responseData = $response->json();
+        $this->assertArrayHasKey('make', $responseData[0]);
     }
 
     public function test_user_can_create_a_model()
@@ -174,12 +195,16 @@ class ModelApiTest extends TestCase
             'make_id' => $make->id
         ];
 
+        // Get user token
+        $token = $this->getAccessToken($this->user);
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->userToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->postJson('/bcms/models', $modelData);
 
         $response->assertStatus(201)
-                 ->assertJsonFragment($modelData);
+                 ->assertJsonFragment(['name' => 'User Test Model'])
+                 ->assertJsonStructure(['make']); // Should include make relationship
         $this->assertDatabaseHas('models', $modelData);
     }
 
@@ -187,34 +212,49 @@ class ModelApiTest extends TestCase
     {
         $model = $this->createModelWithMake();
 
+        // Get user token
+        $token = $this->getAccessToken($this->user);
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->userToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->getJson('/bcms/models/' . $model->id);
 
         $response->assertStatus(200)
-                 ->assertJsonFragment(['name' => $model->name]);
+                 ->assertJsonFragment(['name' => $model->name])
+                 ->assertJsonStructure(['make']); // Should include make relationship
     }
 
     public function test_user_can_update_a_model()
     {
         $model = $this->createModelWithMake();
-        $updatedData = ['name' => 'User Updated Model'];
+        $newMake = Make::factory()->create();
+        $updatedData = [
+            'name' => 'User Updated Model',
+            'make_id' => $newMake->id
+        ];
+
+        // Get user token
+        $token = $this->getAccessToken($this->user);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->userToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->putJson('/bcms/models/' . $model->id, $updatedData);
 
         $response->assertStatus(200)
-                 ->assertJsonFragment($updatedData);
-        $this->assertDatabaseHas('models', ['id' => $model->id, 'name' => 'User Updated Model']);
+                 ->assertJsonFragment(['name' => 'User Updated Model'])
+                 ->assertJsonStructure(['make']); // Should include make relationship
+        $this->assertDatabaseHas('models', $updatedData);
     }
 
     public function test_user_can_delete_a_model()
     {
         $model = $this->createModelWithMake();
 
+        // Get user token
+        $token = $this->getAccessToken($this->user);
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->userToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->deleteJson('/bcms/models/' . $model->id);
 
         $response->assertStatus(204);
@@ -227,31 +267,51 @@ class ModelApiTest extends TestCase
         $this->getJson('/bcms/models')->assertStatus(401);
         
         $make = Make::factory()->create();
-        $modelData = ['name' => 'No Auth Model', 'make_id' => $make->id];
-        $this->postJson('/bcms/models', $modelData)->assertStatus(401);
+        $this->postJson('/bcms/models', [
+            'name' => 'No Auth Model',
+            'make_id' => $make->id
+        ])->assertStatus(401);
         
         $model = $this->createModelWithMake();
         $this->getJson('/bcms/models/' . $model->id)->assertStatus(401);
-        $this->putJson('/bcms/models/' . $model->id, ['name' => 'No Auth Update'])->assertStatus(401);
+        $this->putJson('/bcms/models/' . $model->id, [
+            'name' => 'No Auth Update',
+            'make_id' => $make->id
+        ])->assertStatus(401);
         $this->deleteJson('/bcms/models/' . $model->id)->assertStatus(401);
     }
     
     // Test for validation
-    public function test_create_model_requires_a_name_and_make_id()
+    public function test_create_model_requires_name_and_make_id()
     {
+        // Get manager token
+        $token = $this->getAccessToken($this->manager);
+
+        // Test missing name
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
-        ])->postJson('/bcms/models', ['name' => '']);
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/bcms/models', ['make_id' => Make::factory()->create()->id]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['name', 'make_id']);
-        
-        $make = Make::factory()->create();
+                ->assertJsonValidationErrors('name');
+
+        // Test missing make_id
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
+            'Authorization' => 'Bearer ' . $token,
         ])->postJson('/bcms/models', ['name' => 'Test Model']);
-        
+
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors('make_id');
+                ->assertJsonValidationErrors('make_id');
+
+        // Test invalid make_id (non-existent UUID)
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/bcms/models', [
+            'name' => 'Test Model',
+            'make_id' => '550e8400-e29b-41d4-a716-446655440000' // Valid UUID format but doesn't exist
+        ]);
+
+        $response->assertStatus(422)
+                ->assertJsonValidationErrors('make_id');
     }
 }
