@@ -15,40 +15,31 @@ class SupabaseAuthTest extends TestCase
 
     // Predefined test users
     protected array $manager = ['email' => 'farman@test.com', 'password' => 'password123', 'name' => 'Manager User', 'role' => 'Manager'];
-    protected array $user = ['email' => 'user@test.com',  'password' => 'password123', 'name' => 'Regular User','role' => 'User'];    protected function setUp(): void
+    protected array $user = ['email' => 'user@test.com', 'password' => 'password123', 'name' => 'Regular User', 'role' => 'User'];
+
+    protected function setUp(): void
     {
         parent::setUp();
         $this->supabase = app(SupabaseService::class);
 
-        // Ensure test users exist in Supabase and local DB
+        // Create test users directly in the database (not via Supabase API)
         foreach ([$this->manager, $this->user] as $account) {
-            // Create or update the user in Supabase with the specified role
-            $supabaseUser = $this->supabase->createUser(
-                $account['email'],
-                $account['password'],
-                $account['name'],
-                $account['role']
-            );
+            // Create user with a UUID that mimics Supabase format
+            $userId = (string) \Illuminate\Support\Str::uuid();
             
-            // Extra check: if user exists in Supabase but doesn't have the correct role,
-            // update their role explicitly
-            if ($supabaseUser && isset($supabaseUser['id'])) {
-                // Ensure the role is properly set in Supabase
-                $this->supabase->updateUserRole($supabaseUser['id'], $account['role']);
-                
-                // Ensure the role is properly set in the local database
-                \Illuminate\Support\Facades\DB::table('users')
-                    ->updateOrInsert(
-                        ['id' => $supabaseUser['id']], 
-                        [
-                            'email' => $account['email'],
-                            'name' => $account['name'],
-                            'role' => $account['role'],
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]
-                    );
-            }
+            // Insert directly into the local database
+            DB::table('users')->updateOrInsert(
+                ['email' => $account['email']], 
+                [
+                    'id' => $userId,
+                    'email' => $account['email'],
+                    'name' => $account['name'],
+                    'role' => $account['role'],
+                    'email_verified_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
     }
 

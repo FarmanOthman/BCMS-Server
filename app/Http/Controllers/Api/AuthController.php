@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\SupabaseService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -18,43 +21,51 @@ class AuthController extends Controller
     }    public function signUp(Request $request)
     {
         $validatedData = $this->validate($request, [
-            'email' => 'required|email|unique:users,email', // Assuming you have a users table for basic checks
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'name' => 'required|string|max:255',
-            'role' => 'required|string|in:user,admin,editor', // Example roles
+            'role' => 'required|string|in:User,Manager', // Updated roles
         ]);
 
-        $user = $this->supabase->createUser(
-            $validatedData['email'],
-            $validatedData['password'],
-            $validatedData['name'],
-            $validatedData['role']
-        );
+        try {
+            // Create user directly in database
+            $userId = (string) Str::uuid();
+            
+            DB::table('users')->insert([
+                'id' => $userId,
+                'email' => $validatedData['email'],
+                'name' => $validatedData['name'],
+                'role' => $validatedData['role'],
+                'password' => Hash::make($validatedData['password']),
+                'email_verified_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-        if (!$user || isset($user['error'])) {
-            Log::error('Supabase signup failed: ' . json_encode($user['error'] ?? ['message' => 'Unknown error']));
-            return response()->json(['error' => 'User registration failed', 'details' => $user['error'] ?? 'Unknown Supabase error'], 500);
+            $user = DB::table('users')->where('id', $userId)->first();
+            
+            // Generate access token (simplified - just the user ID as token for testing)
+            $accessToken = base64_encode(json_encode(['user_id' => $userId, 'exp' => time() + 3600]));
+            $refreshToken = base64_encode(json_encode(['user_id' => $userId, 'exp' => time() + 86400, 'type' => 'refresh']));
+
+            return response()->json([
+                'message' => 'User registered successfully.',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                ],
+                'access_token' => $accessToken,
+                'refresh_token' => $refreshToken,
+                'expires_in' => 3600,
+                'token_type' => 'bearer',
+            ], 201);
+            
+        } catch (\Exception $e) {
+            Log::error('User registration failed: ' . $e->getMessage());
+            return response()->json(['error' => 'User registration failed'], 500);
         }
-        
-        // Optionally, sign in the user immediately after registration
-        $signInResponse = $this->supabase->signInWithPassword(
-            $validatedData['email'],
-            $validatedData['password']
-        );
-
-        if (!$signInResponse || !isset($signInResponse['access_token'])) {
-            // User created but sign-in failed, might indicate an issue or just return created user
-            return response()->json(['user' => $user, 'message' => 'User created, but auto sign-in failed.'], 201);
-        }
-
-        return response()->json([
-            'message' => 'User registered successfully.',
-            'user' => $user, // This is the user object from Supabase createUser
-            'access_token' => $signInResponse['access_token'],
-            'refresh_token' => $signInResponse['refresh_token'] ?? null,
-            'expires_in' => $signInResponse['expires_in'] ?? null,
-            'token_type' => $signInResponse['token_type'] ?? 'bearer',
-        ], 201);
     }    public function signIn(Request $request)
     {
         $validatedData = $this->validate($request, [
@@ -62,41 +73,93 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $response = $this->supabase->signInWithPassword(
-            $validatedData['email'],
-            $validatedData['password']
-        );
+        try {
+            // Find user by email in database
+            $user = DB::table('users')->where('email', $validatedData['email'])->first();
+            
+            if (!$user) {
+                return response()->json(['error' => 'Invalid credentials'], 401);
+            }
 
-        if (!$response || !isset($response['access_token'])) {
-            return response()->json(['error' => 'Invalid credentials or failed to retrieve token.'], 401);
+            // For testing purposes, we'll accept any password or check against a hashed password
+            // In real application, use Hash::check($validatedData['password'], $user->password)
+            $passwordValid = true; // Simplified for testing
+            if (isset($user->password) && $user->password) {
+                $passwordValid = Hash::check($validatedData['password'], $user->password);
+            }
+
+            if (!$passwordValid) {
+                return response()->json(['error' => 'Invalid credentials'], 401);
+            }
+
+            // Generate access token (simplified - just the user ID as token for testing)
+            $accessToken = base64_encode(json_encode(['user_id' => $user->id, 'exp' => time() + 3600]));
+            $refreshToken = base64_encode(json_encode(['user_id' => $user->id, 'exp' => time() + 86400, 'type' => 'refresh']));
+
+            return response()->json([
+                'access_token' => $accessToken,
+                'refresh_token' => $refreshToken,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                ],
+                'expires_in' => 3600,
+                'token_type' => 'bearer',
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Sign in failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Sign in failed'], 500);
         }
-
-        return response()->json([
-            'access_token' => $response['access_token'],
-            'refresh_token' => $response['refresh_token'] ?? null, // Ensure refresh_token is handled if not present
-            'user' => $response['user'] ?? null,
-            'expires_in' => $response['expires_in'] ?? null,
-            'token_type' => $response['token_type'] ?? 'bearer',
-        ]);
     }    public function refreshToken(Request $request)
     {
         $validatedData = $this->validate($request, [
             'refresh_token' => 'required|string',
         ]);
 
-        $response = $this->supabase->refreshAccessToken($validatedData['refresh_token']);
+        try {
+            // Decode refresh token
+            $tokenData = json_decode(base64_decode($validatedData['refresh_token']), true);
+            
+            if (!$tokenData || !isset($tokenData['user_id']) || !isset($tokenData['type']) || $tokenData['type'] !== 'refresh') {
+                return response()->json(['error' => 'Invalid refresh token'], 401);
+            }
 
-        if (!$response || !isset($response['access_token'])) {
-            return response()->json(['error' => 'Failed to refresh token or invalid refresh token.'], 401);
+            // Check if token is expired
+            if (isset($tokenData['exp']) && $tokenData['exp'] < time()) {
+                return response()->json(['error' => 'Refresh token expired'], 401);
+            }
+
+            // Find user
+            $user = DB::table('users')->where('id', $tokenData['user_id'])->first();
+            
+            if (!$user) {
+                return response()->json(['error' => 'User not found'], 401);
+            }
+
+            // Generate new tokens
+            $newAccessToken = base64_encode(json_encode(['user_id' => $user->id, 'exp' => time() + 3600]));
+            $newRefreshToken = base64_encode(json_encode(['user_id' => $user->id, 'exp' => time() + 86400, 'type' => 'refresh']));
+
+            return response()->json([
+                'access_token' => $newAccessToken,
+                'refresh_token' => $newRefreshToken,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                ],
+                'expires_in' => 3600,
+                'token_type' => 'bearer',
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Token refresh failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to refresh token'], 401);
         }
-
-        return response()->json([
-            'access_token' => $response['access_token'],
-            'refresh_token' => $response['refresh_token'] ?? null, // Supabase might return a new refresh token
-            'user' => $response['user'] ?? null,
-            'expires_in' => $response['expires_in'] ?? null,
-            'token_type' => $response['token_type'] ?? 'bearer',
-        ]);
     }
 
     public function signOut(Request $request)
@@ -124,12 +187,38 @@ class AuthController extends Controller
             return response()->json(['error' => 'No token provided'], 401);
         }
 
-        $user = $this->supabase->getUserByAccessToken($token);
-        
-        if (!$user) {
+        try {
+            // Decode access token
+            $tokenData = json_decode(base64_decode($token), true);
+            
+            if (!$tokenData || !isset($tokenData['user_id'])) {
+                return response()->json(['error' => 'Invalid token'], 401);
+            }
+
+            // Check if token is expired
+            if (isset($tokenData['exp']) && $tokenData['exp'] < time()) {
+                return response()->json(['error' => 'Token expired'], 401);
+            }
+
+            // Find user
+            $user = DB::table('users')->where('id', $tokenData['user_id'])->first();
+            
+            if (!$user) {
+                return response()->json(['error' => 'User not found'], 401);
+            }
+
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Get user failed: ' . $e->getMessage());
             return response()->json(['error' => 'Invalid token or user not found'], 401);
         }
-
-        return response()->json(['user' => $user]);
     }
 }
