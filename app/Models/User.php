@@ -47,7 +47,6 @@ class User extends Authenticatable
         'id', // Assuming UUID from Supabase will be used as primary key
         'name',
         'email',
-        // 'password', // Password is not stored in this table, it's in Supabase Auth
         'role', // Added role field
     ];
 

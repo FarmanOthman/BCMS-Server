@@ -1,0 +1,1229 @@
+{
+	"info": {
+		"_postman_id": "bcms-api-collection",
+		"name": "BCMS API Collection",
+		"description": "Complete API collection for BCMS (Bestun Cars Management System) with all 47 endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Sign In",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{MANAGER_EMAIL}}\",\n    \"password\": \"{{MANAGER_PASSWORD}}\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/auth/signin",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "auth", "signin"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has access token\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.access_token).to.exist;",
+									"    pm.environment.set(\"ACCESS_TOKEN\", jsonData.access_token);",
+									"    pm.environment.set(\"REFRESH_TOKEN\", jsonData.refresh_token);",
+									"    pm.environment.set(\"USER_ID\", jsonData.user.id);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{REFRESH_TOKEN}}\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/auth/refresh",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "auth", "refresh"]
+						}
+					}
+				},
+				{
+					"name": "Sign Out",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/auth/signout",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "auth", "signout"]
+						}
+					}
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/auth/user",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "auth", "user"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. User Management (Manager Only)",
+			"item": [
+				{
+					"name": "List Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/users",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "users"]
+						}
+					}
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newuser@example.com\",\n    \"name\": \"New User\",\n    \"role\": \"User\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/users",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "users"]
+						}
+					}
+				},
+				{
+					"name": "Get User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/users/{{USER_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "users", "{{USER_ID}}"]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated User Name\",\n    \"role\": \"Manager\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/users/{{USER_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "users", "{{USER_ID}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/users/{{USER_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "users", "{{USER_ID}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Car Management",
+			"item": [
+				{
+					"name": "List Cars (Public)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/cars",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "cars"]
+						}
+					}
+				},
+				{
+					"name": "Get Car (Public)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/cars/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "cars", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create Car (Auth Required)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"make_id\": 1,\n    \"model_id\": 1,\n    \"year\": 2020,\n    \"color\": \"Red\",\n    \"mileage\": 50000,\n    \"price\": 25000,\n    \"public_price\": 27000,\n    \"status\": \"available\",\n    \"description\": \"Well maintained car\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/cars",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "cars"]
+						}
+					}
+				},
+				{
+					"name": "Update Car (Auth Required)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"price\": 24000,\n    \"public_price\": 26000,\n    \"status\": \"sold\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/cars/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "cars", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Car (Auth Required)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/cars/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "cars", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Make Management (Auth Required)",
+			"item": [
+				{
+					"name": "List Makes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/makes",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "makes"]
+						}
+					}
+				},
+				{
+					"name": "Create Make",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Toyota\",\n    \"description\": \"Japanese car manufacturer\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/makes",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "makes"]
+						}
+					}
+				},
+				{
+					"name": "Get Make",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/makes/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "makes", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Make",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Toyota Motor Corporation\",\n    \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/makes/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "makes", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Make",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/makes/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "makes", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Model Management (Auth Required)",
+			"item": [
+				{
+					"name": "List Models",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/models",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "models"]
+						}
+					}
+				},
+				{
+					"name": "Create Model",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"make_id\": 1,\n    \"name\": \"Camry\",\n    \"description\": \"Sedan model\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/models",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "models"]
+						}
+					}
+				},
+				{
+					"name": "Get Model",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/models/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "models", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Model",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Camry Hybrid\",\n    \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/models/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "models", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Model",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/models/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "models", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Buyer Management (Auth Required)",
+			"item": [
+				{
+					"name": "List Buyers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/buyers",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "buyers"]
+						}
+					}
+				},
+				{
+					"name": "Create Buyer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"+1234567890\",\n    \"address\": \"123 Main St, City, State\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/buyers",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "buyers"]
+						}
+					}
+				},
+				{
+					"name": "Get Buyer",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/buyers/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "buyers", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Buyer",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Smith\",\n    \"phone\": \"+1234567891\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/buyers/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "buyers", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Buyer",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/buyers/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "buyers", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. Sale Management (Manager Only)",
+			"item": [
+				{
+					"name": "List Sales",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/sales",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "sales"]
+						}
+					}
+				},
+				{
+					"name": "Create Sale",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"car_id\": 1,\n    \"buyer_id\": 1,\n    \"sale_price\": 25000,\n    \"sale_date\": \"2024-01-15\",\n    \"payment_method\": \"cash\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/sales",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "sales"]
+						}
+					}
+				},
+				{
+					"name": "Get Sale",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/sales/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "sales", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Sale",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sale_price\": 24500,\n    \"payment_method\": \"finance\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/sales/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "sales", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Sale",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/sales/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "sales", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "8. Daily Sales Reports (Manager Only)",
+			"item": [
+				{
+					"name": "Get Daily Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/daily?date=2024-01-15",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "daily"],
+							"query": [
+								{
+									"key": "date",
+									"value": "2024-01-15"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "List Daily Reports",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/daily/list",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "daily", "list"]
+						}
+					}
+				},
+				{
+					"name": "Create Daily Report",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2024-01-15\",\n    \"total_sales\": 50000,\n    \"cars_sold\": 2,\n    \"notes\": \"Good sales day\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/daily",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "daily"]
+						}
+					}
+				},
+				{
+					"name": "Update Daily Report",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"total_sales\": 52000,\n    \"cars_sold\": 3,\n    \"notes\": \"Updated notes\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/daily/2024-01-15",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "daily", "2024-01-15"]
+						}
+					}
+				},
+				{
+					"name": "Delete Daily Report",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/daily/2024-01-15",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "daily", "2024-01-15"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "9. Monthly Sales Reports (Manager Only)",
+			"item": [
+				{
+					"name": "Get Monthly Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/monthly?year=2024&month=1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "monthly"],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024"
+								},
+								{
+									"key": "month",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "List Monthly Reports",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/monthly/list",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "monthly", "list"]
+						}
+					}
+				},
+				{
+					"name": "Create Monthly Report",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"year\": 2024,\n    \"month\": 1,\n    \"total_sales\": 150000,\n    \"cars_sold\": 6,\n    \"total_finance_cost\": 5000\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/monthly",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "monthly"]
+						}
+					}
+				},
+				{
+					"name": "Update Monthly Report",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"total_sales\": 155000,\n    \"cars_sold\": 7\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/monthly/2024/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "monthly", "2024", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Monthly Report",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/monthly/2024/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "monthly", "2024", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "10. Yearly Sales Reports (Manager Only)",
+			"item": [
+				{
+					"name": "List Yearly Reports",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/yearly-reports",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "yearly-reports"]
+						}
+					}
+				},
+				{
+					"name": "Get Yearly Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/yearly?year=2024",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "yearly"],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Yearly Report",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"year\": 2024,\n    \"total_sales\": 1800000,\n    \"cars_sold\": 72,\n    \"total_finance_cost\": 60000\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/yearly",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "yearly"]
+						}
+					}
+				},
+				{
+					"name": "Update Yearly Report",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"total_sales\": 1850000,\n    \"cars_sold\": 75\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/yearly/2024",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "yearly", "2024"]
+						}
+					}
+				},
+				{
+					"name": "Delete Yearly Report",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/yearly/2024",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "yearly", "2024"]
+						}
+					}
+				},
+				{
+					"name": "Generate Yearly Report",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"year\": 2024\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/reports/yearly/generate",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "reports", "yearly", "generate"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "11. Finance Records (Manager Only)",
+			"item": [
+				{
+					"name": "List Finance Records",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/finance-records",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "finance-records"]
+						}
+					}
+				},
+				{
+					"name": "Create Finance Record",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"description\": \"Office rent\",\n    \"amount\": 2000,\n    \"type\": \"expense\",\n    \"date\": \"2024-01-15\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/finance-records",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "finance-records"]
+						}
+					}
+				},
+				{
+					"name": "Get Finance Record",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/finance-records/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "finance-records", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Finance Record",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"description\": \"Updated office rent\",\n    \"amount\": 2200\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/finance-records/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "finance-records", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Finance Record",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/finance-records/1",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "finance-records", "1"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"if (pm.environment.get(\"ACCESS_TOKEN\")) {",
+					"    pm.request.headers.add({",
+					"        key: \"Authorization\",",
+					"        value: \"Bearer \" + pm.environment.get(\"ACCESS_TOKEN\")",
+					"    });",
+					"}",
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:8000"
+		}
+	]
+} 

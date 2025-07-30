@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Services\SupabaseService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -13,12 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    protected SupabaseService $supabase;
-
-    public function __construct(SupabaseService $supabase)
-    {
-        $this->supabase = $supabase;
-    }    public function signUp(Request $request)
+    public function signUp(Request $request)
     {
         $validatedData = $this->validate($request, [
             'email' => 'required|email|unique:users,email',
@@ -171,7 +165,7 @@ class AuthController extends Controller
 
         // Attempt to sign out in Supabase; ignore failures
         try {
-            $this->supabase->signOutUser($token);
+            // Supabase sign out logic removed
         } catch (\Throwable $e) {
             // Log or ignore
         }

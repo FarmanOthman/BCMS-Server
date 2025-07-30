@@ -25,9 +25,6 @@ class AppServiceProvider extends ServiceProvider
         // This checks if the authenticated user has the 'Manager' role
         Gate::define('create', function (User $user, string $model) {
             if ($model === User::class) {
-                 // Assuming your User model (which represents the authenticated user)
-                 // has a 'role' attribute fetched from your 'Users' table in Supabase public schema.
-                 // This requires that when a user authenticates, their role is loaded.
                 return $user->hasRole('Manager');
             }
             return false;

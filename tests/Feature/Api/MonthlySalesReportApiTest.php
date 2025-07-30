@@ -5,7 +5,6 @@ namespace Tests\Feature\Api;
 use App\Models\FinanceRecord;
 use App\Models\MonthlySalesReport;
 use App\Models\User;
-use App\Services\SupabaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -19,7 +18,6 @@ class MonthlySalesReportApiTest extends TestCase
     protected $userToken = 'user-test-token';
     protected $manager;
     protected $user;
-    protected $supabaseServiceMock;
     
     protected function setUp(): void
     {
@@ -38,34 +36,6 @@ class MonthlySalesReportApiTest extends TestCase
             'name' => 'Monthly Report Test User'
         ]);
         
-        // Mock the SupabaseService
-        $this->supabaseServiceMock = Mockery::mock(SupabaseService::class);
-        $this->app->instance(SupabaseService::class, $this->supabaseServiceMock);
-        
-        // Setup the mock for the manager token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->managerToken)
-            ->andReturn([
-                'id' => $this->manager->id,
-                'email' => $this->manager->email,
-                'name' => $this->manager->name,
-                'role' => 'Manager'
-            ]);
-        
-        // Setup the mock for the user token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->userToken)
-            ->andReturn([
-                'id' => $this->user->id,
-                'email' => $this->user->email,
-                'name' => $this->user->name,
-                'role' => 'User'
-            ]);
-        
-        // Setup the mock for invalid tokens
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->withAnyArgs()
-            ->andReturnNull();
     }
     
     protected function tearDown(): void
@@ -528,16 +498,6 @@ class MonthlySalesReportApiTest extends TestCase
     /** @test */
     public function test_store_monthly_report_calculates_total_finance_cost_if_not_provided()
     {
-        // Mock Supabase authentication
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->managerToken)
-            ->andReturn([
-                'id' => $this->manager->id,
-                'email' => $this->manager->email,
-                'name' => $this->manager->name,
-                'role' => 'Manager'
-            ]);
-        
         $year = 2025;
         $month = 8;
         
@@ -577,7 +537,7 @@ class MonthlySalesReportApiTest extends TestCase
         
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $this->managerToken,
-        ])->postJson('/api/monthly-reports', $reportData);
+        ])->postJson('/bcms/reports/monthly', $reportData);
         
         $response->assertStatus(201);
         
@@ -592,16 +552,6 @@ class MonthlySalesReportApiTest extends TestCase
     /** @test */
     public function test_update_monthly_report_calculates_total_finance_cost_if_not_provided()
     {
-        // Mock Supabase authentication
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->managerToken)
-            ->andReturn([
-                'id' => $this->manager->id,
-                'email' => $this->manager->email,
-                'name' => $this->manager->name,
-                'role' => 'Manager'
-            ]);
-        
         $year = 2025;
         $month = 9;
         
@@ -639,7 +589,7 @@ class MonthlySalesReportApiTest extends TestCase
         
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $this->managerToken,
-        ])->patchJson("/api/monthly-reports/{$year}/{$month}", $updateData);
+        ])->patchJson("/bcms/reports/monthly/{$year}/{$month}", $updateData);
         
         $response->assertStatus(200);
         

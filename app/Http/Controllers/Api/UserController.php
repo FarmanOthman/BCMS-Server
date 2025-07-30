@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\CreateUserRequest;
-use App\Services\SupabaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,12 +13,7 @@ use Exception; // Import base Exception class
 
 class UserController extends Controller
 {
-    protected SupabaseService $supabaseService;    public function __construct(SupabaseService $supabaseService)
-    {
-        $this->supabaseService = $supabaseService;
-        // Middleware are applied in routes/api.php
-        // No need for manual checks in controller methods
-    }    /**
+    /**
      * Create a new user.
      *
      * @param CreateUserRequest $request
@@ -102,13 +96,12 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $supabaseUser = $this->supabaseService->getUserByAccessToken($token);
+        // Removed: $supabaseUser = $this->supabaseService->getUserByAccessToken($token);
 
-        if ($supabaseUser) {
-            return response()->json($supabaseUser);
-        }
-
-        return response()->json(['message' => 'Could not retrieve user from Supabase.'], 404);
+        // In a real application, you would decode the Sanctum token to get the user ID
+        // and then fetch the user from your local database.
+        // For this example, we'll just return a placeholder response.
+        return response()->json(['message' => 'Authenticated user details (placeholder).', 'user' => $user]);
     }
 
     /**     * Display a listing of all users.

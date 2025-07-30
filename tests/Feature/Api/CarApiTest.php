@@ -6,7 +6,6 @@ use App\Models\Car;
 use App\Models\Make;
 use App\Models\Model as CarModel;
 use App\Models\User;
-use App\Services\SupabaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Mockery;

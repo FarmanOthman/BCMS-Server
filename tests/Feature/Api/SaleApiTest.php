@@ -8,7 +8,6 @@ use App\Models\Make;
 use App\Models\Model as CarModel;
 use App\Models\Sale;
 use App\Models\User;
-use App\Services\SupabaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Mockery;
@@ -20,7 +19,6 @@ class SaleApiTest extends TestCase
     protected $userToken = 'user-test-token';
     protected $manager;
     protected $user;
-    protected $supabaseServiceMock;
     protected $make;
     protected $model;
     protected $car;
@@ -62,33 +60,6 @@ class SaleApiTest extends TestCase
         ]);
           // Create a buyer for testing
         $this->buyer = Buyer::factory()->create();
-          // Mock the SupabaseService
-        $this->supabaseServiceMock = Mockery::mock(SupabaseService::class);
-        $this->app->instance(SupabaseService::class, $this->supabaseServiceMock);
-        
-        // Setup the mock for the manager token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->managerToken)
-            ->andReturn([
-                'id' => $this->manager->id,
-                'email' => $this->manager->email,
-                'name' => $this->manager->name,
-                'role' => 'Manager'
-            ]);
-              // Setup the mock for the user token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->userToken)
-            ->andReturn([
-                'id' => $this->user->id,
-                'email' => $this->user->email,
-                'name' => $this->user->name,
-                'role' => 'User'
-            ]);
-            
-        // Setup the mock for invalid tokens - this will handle any other token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->withAnyArgs()
-            ->andReturnNull();
     }
     
     protected function tearDown(): void

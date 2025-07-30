@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\FinanceRecord;
 use App\Models\User;
-use App\Services\SupabaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Mockery;
@@ -17,7 +16,6 @@ class FinanceRecordApiTest extends TestCase
     protected $userToken = 'user-test-token';
     protected $manager;
     protected $user;
-    protected $supabaseServiceMock;
     
     protected function setUp(): void
     {
@@ -36,34 +34,14 @@ class FinanceRecordApiTest extends TestCase
             'name' => 'Finance Test User'
         ]);
         
-        // Mock the SupabaseService
-        $this->supabaseServiceMock = Mockery::mock(SupabaseService::class);
-        $this->app->instance(SupabaseService::class, $this->supabaseServiceMock);
-        
         // Setup the mock for the manager token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->managerToken)
-            ->andReturn([
-                'id' => $this->manager->id,
-                'email' => $this->manager->email,
-                'name' => $this->manager->name,
-                'role' => 'Manager'
-            ]);
+        $this->actingAs($this->manager);
         
         // Setup the mock for the user token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->userToken)
-            ->andReturn([
-                'id' => $this->user->id,
-                'email' => $this->user->email,
-                'name' => $this->user->name,
-                'role' => 'User'
-            ]);
+        $this->actingAs($this->user);
         
         // Setup the mock for invalid tokens
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->withAnyArgs()
-            ->andReturnNull();
+        $this->actingAs(null);
     }
     
     protected function tearDown(): void

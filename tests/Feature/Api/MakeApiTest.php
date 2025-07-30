@@ -3,7 +3,6 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Make;
-use App\Services\SupabaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -12,8 +11,6 @@ class MakeApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected SupabaseService $supabase;
-
     // Predefined test users (same as SupabaseAuthTest)
     protected array $manager = ['email' => 'farman@test.com', 'password' => 'password123', 'name' => 'Manager User', 'role' => 'Manager'];
     protected array $user = ['email' => 'user@test.com', 'password' => 'password123', 'name' => 'Regular User', 'role' => 'User'];
@@ -21,7 +18,6 @@ class MakeApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->supabase = app(SupabaseService::class);
 
         // Create test users directly in the database (not via Supabase API)
         foreach ([$this->manager, $this->user] as $account) {

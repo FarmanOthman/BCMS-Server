@@ -3,32 +3,59 @@
 namespace Tests\Feature\Api;
 
 use Tests\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Authentication API Integration Test
  * 
- * This test requires actual Supabase credentials and test users.
- * Make sure your .env file has the correct SUPABASE_URL and SUPABASE_ANON_KEY
- * 
- * Before running these tests, you need to create test users in your Supabase project:
- * - test@example.com with password 'password123'
- * - manager@example.com with password 'password123' (with Manager role)
- * 
- * Note: These tests will fail if the Supabase users don't exist or if Supabase credentials are invalid.
+ * This test works with the local PostgreSQL authentication system.
+ * Tests user registration, sign-in, token management, and user information retrieval.
  */
 class AuthApiTest extends TestCase
-{    protected string $testEmail = 'farman@test.com';
+{
+    use RefreshDatabase;
+
+    protected string $testEmail = 'test@example.com';
     protected string $testPassword = 'password123';
-    protected string $managerEmail = 'farman@test.com';
+    protected string $managerEmail = 'manager@example.com';
     protected string $managerPassword = 'password123';
 
     protected function setUp(): void
     {
         parent::setUp();
-          // Skip these tests if we're not in an environment configured for Supabase integration testing
-        if (empty(env('SUPABASE_URL')) || empty(env('SUPABASE_KEY'))) {
-            $this->markTestSkipped('Supabase integration tests require SUPABASE_URL and SUPABASE_KEY environment variables');
-        }
+        
+        // Create test users in the database
+        $this->createTestUsers();
+    }
+
+    protected function createTestUsers()
+    {
+        // Create regular user
+        DB::table('users')->insert([
+            'id' => (string) Str::uuid(),
+            'email' => $this->testEmail,
+            'name' => 'Test User',
+            'role' => 'User',
+            'password' => Hash::make($this->testPassword),
+            'email_verified_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Create manager user
+        DB::table('users')->insert([
+            'id' => (string) Str::uuid(),
+            'email' => $this->managerEmail,
+            'name' => 'Manager User',
+            'role' => 'Manager',
+            'password' => Hash::make($this->managerPassword),
+            'email_verified_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**
@@ -41,10 +68,6 @@ class AuthApiTest extends TestCase
             'email' => $this->testEmail,
             'password' => $this->testPassword
         ]);
-
-        if ($response->status() === 401) {
-            $this->markTestSkipped("Test user {$this->testEmail} does not exist in Supabase or has wrong password");
-        }
 
         $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -79,14 +102,15 @@ class AuthApiTest extends TestCase
 
         $response->assertStatus(401)
                 ->assertJson([
-                    'error' => 'Invalid credentials or failed to retrieve token.'
+                    'error' => 'Invalid credentials'
                 ]);
     }
 
     /**
      * @test
      * Test validation for required fields
-     */    public function it_requires_email_and_password_for_sign_in()
+     */
+    public function it_requires_email_and_password_for_sign_in()
     {
         $response = $this->postJson('/bcms/auth/signin', []);
 
@@ -121,10 +145,6 @@ class AuthApiTest extends TestCase
             'password' => $this->testPassword
         ]);
 
-        if ($signInResponse->status() === 401) {
-            $this->markTestSkipped("Test user {$this->testEmail} does not exist in Supabase");
-        }
-
         $signInResponse->assertStatus(200);
         $refreshToken = $signInResponse->json('refresh_token');
         $this->assertNotNull($refreshToken, 'Refresh token should be present in sign in response');
@@ -158,7 +178,7 @@ class AuthApiTest extends TestCase
 
         $response->assertStatus(401)
                 ->assertJson([
-                    'error' => 'Failed to refresh token or invalid refresh token.'
+                    'error' => 'Invalid refresh token'
                 ]);
     }
 
@@ -185,10 +205,6 @@ class AuthApiTest extends TestCase
             'email' => $this->testEmail,
             'password' => $this->testPassword
         ]);
-
-        if ($signInResponse->status() === 401) {
-            $this->markTestSkipped("Test user {$this->testEmail} does not exist in Supabase");
-        }
 
         $signInResponse->assertStatus(200);
         $accessToken = $signInResponse->json('access_token');
@@ -248,10 +264,6 @@ class AuthApiTest extends TestCase
             'password' => $this->testPassword
         ]);
 
-        if ($signInResponse->status() === 401) {
-            $this->markTestSkipped("Test user {$this->testEmail} does not exist in Supabase");
-        }
-
         $signInResponse->assertStatus(200);
         $accessToken = $signInResponse->json('access_token');
         $this->assertNotNull($accessToken);
@@ -300,7 +312,7 @@ class AuthApiTest extends TestCase
 
         $response->assertStatus(401)
                 ->assertJson([
-                    'error' => 'Invalid token or user not found'
+                    'error' => 'Invalid token'
                 ]);
     }
 
@@ -334,16 +346,6 @@ class AuthApiTest extends TestCase
      */
     public function it_handles_multiple_valid_sign_in_attempts()
     {
-        // Test first valid sign in
-        $firstResponse = $this->postJson('/bcms/auth/signin', [
-            'email' => $this->testEmail,
-            'password' => $this->testPassword
-        ]);
-
-        if ($firstResponse->status() === 401) {
-            $this->markTestSkipped("Test user {$this->testEmail} does not exist in Supabase");
-        }
-
         // Multiple valid sign in attempts should all succeed (within rate limit)
         for ($i = 0; $i < 3; $i++) {
             $response = $this->postJson('/bcms/auth/signin', [
@@ -370,10 +372,6 @@ class AuthApiTest extends TestCase
             'password' => $this->testPassword
         ]);
 
-        if ($signInResponse->status() === 401) {
-            $this->markTestSkipped("Test user {$this->testEmail} does not exist in Supabase");
-        }
-
         $signInResponse->assertStatus(200);
         $accessToken = $signInResponse->json('access_token');
         $signInUser = $signInResponse->json('user');
@@ -393,7 +391,7 @@ class AuthApiTest extends TestCase
 
     /**
      * @test
-     * Test sign in with manager account (if available)
+     * Test sign in with manager account
      */
     public function it_can_sign_in_manager_account()
     {
@@ -401,10 +399,6 @@ class AuthApiTest extends TestCase
             'email' => $this->managerEmail,
             'password' => $this->managerPassword
         ]);
-
-        if ($response->status() === 401) {
-            $this->markTestSkipped("Manager test user {$this->managerEmail} does not exist in Supabase");
-        }
 
         $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -418,6 +412,7 @@ class AuthApiTest extends TestCase
         // Verify it's the manager account
         $userData = $response->json('user');
         $this->assertEquals($this->managerEmail, $userData['email']);
+        $this->assertEquals('Manager', $userData['role']);
     }
 
     /**
@@ -431,10 +426,6 @@ class AuthApiTest extends TestCase
             'email' => $this->testEmail,
             'password' => $this->testPassword
         ]);
-
-        if ($signInResponse->status() === 401) {
-            $this->markTestSkipped("Test user {$this->testEmail} does not exist in Supabase");
-        }
 
         $signInResponse->assertStatus(200);
         $accessToken = $signInResponse->json('access_token');
@@ -464,12 +455,7 @@ class AuthApiTest extends TestCase
             'Authorization' => 'Bearer ' . $newAccessToken
         ]);
         $signOutResponse->assertStatus(200);
-
-        // 6. Verify token is invalid after sign out
-        $afterSignOutResponse = $this->getJson('/bcms/auth/user', [
-            'Authorization' => 'Bearer ' . $newAccessToken
-        ]);
-        // Note: Depending on Supabase implementation, this might still work
-        // as sign out in the controller doesn't guarantee token invalidation
     }
+
+
 }

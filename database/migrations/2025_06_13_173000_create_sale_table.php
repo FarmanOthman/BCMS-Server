@@ -38,8 +38,6 @@ return new class extends Migration
                 // or added via DB::statement if necessary for the specific database driver.
                 // Laravel's schema builder has limited direct support for complex CHECK constraints.
             });
-        } else {
-            // Log::info('Table "sale" already exists. Skipping creation.');
         }
     }
 

@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('makes', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // Changed from id() to uuid('id')->primary()
-            $table->string('name'); // unique index not needed; Supabase/PostgreSQL handles indexing
-            $table->timestamps(); // Adds created_at and updated_at
+            $table->uuid('id')->primary();
+            $table->string('name');
+            $table->timestamps();
         });
     }
 

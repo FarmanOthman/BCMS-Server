@@ -41,7 +41,7 @@ return [
         ],
 
         'api' => [
-            'driver' => 'supabase', // Use the custom supabase guard
+            'driver' => 'token', // Changed from 'supabase' to 'token'
             'provider' => 'users',
         ],
     ],

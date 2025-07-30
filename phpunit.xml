@@ -23,14 +23,11 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="pgsql"/>
-        <env name="DB_HOST" value="aws-0-eu-central-1.pooler.supabase.com"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
         <env name="DB_PORT" value="5432"/>
-        <env name="DB_DATABASE" value="postgres"/>
-        <env name="DB_USERNAME" value="postgres.rtrqpsvhxyjhfyzwegom"/>
-        <env name="DB_PASSWORD" value="1f2f3h4h5m6m"/>
-        <env name="SUPABASE_URL" value="https://rtrqpsvhxyjhfyzwegom.supabase.co"/>
-        <env name="SUPABASE_KEY" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0cnFwc3ZoeHlqaGZ5endlZ29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NjUxNzUsImV4cCI6MjA2NTI0MTE3NX0.tUdU1H7J4GdJdPua9_lzwAObqT75N7Msem3j-vfUUVw"/>
-        <env name="SUPABASE_SERVICE_ROLE_KEY" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0cnFwc3ZoeHlqaGZ5endlZ29tIiwicm9zZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTY2NTE3NSwiZXhwIjoyMDY1MjQxMTc1fQ.B_78NAF9nAOojYgbUTgo4NeIVipeTCFmVuEdpQK0YNQ"/>
+        <env name="DB_DATABASE" value="bcms"/>
+        <env name="DB_USERNAME" value="postgres"/>
+        <env name="DB_PASSWORD" value="1f2f3o4o"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
