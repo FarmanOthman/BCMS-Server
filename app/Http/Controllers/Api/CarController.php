@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 
 class CarController extends Controller
 {
-    const CACHE_TAG_CARS_LIST = 'cars_list';
+    const CACHE_PREFIX_CARS_LIST = 'cars_list';
 
     /**
      * Display a listing of the resource.
@@ -43,15 +43,15 @@ class CarController extends Controller
             $cacheKey .= ":model:{$modelId}";
         }
 
-        Log::info("Attempting to retrieve from cache with key: {$cacheKey} using tags: [" . self::CACHE_TAG_CARS_LIST . "]");
+        Log::info("Attempting to retrieve from cache with key: {$cacheKey}");
 
         // Cache duration in seconds (e.g., 60 seconds = 1 minute)
         $cacheDuration = 60;
         $isCacheHit = true; // Assume cache hit initially
 
-        // Retrieve data from cache or database using tags
-        $data = Cache::tags(self::CACHE_TAG_CARS_LIST)->remember($cacheKey, $cacheDuration, function () use ($limit, $page, $makeId, $modelId, $cacheKey, &$isCacheHit) {
-            Log::info("Cache miss for key: {$cacheKey} (tags: [" . self::CACHE_TAG_CARS_LIST . "]). Fetching from database.");
+        // Retrieve data from cache or database
+        $data = Cache::remember($cacheKey, $cacheDuration, function () use ($limit, $page, $makeId, $modelId, $cacheKey, &$isCacheHit) {
+            Log::info("Cache miss for key: {$cacheKey}. Fetching from database.");
             $isCacheHit = false; // Set to false if closure is executed
             
             // Use Eloquent for querying with relationships
@@ -82,7 +82,7 @@ class CarController extends Controller
         });
 
         if ($isCacheHit) {
-            Log::info("Cache hit for key: {$cacheKey} (tags: [" . self::CACHE_TAG_CARS_LIST . "])");
+            Log::info("Cache hit for key: {$cacheKey}");
         }
 
         return response()->json([
@@ -111,6 +111,17 @@ class CarController extends Controller
             }
         }
         return $totalRepairCost;
+    }
+
+    /**
+     * Clear all cars list cache entries by clearing cache keys that start with the cars list prefix.
+     */
+    private function clearCarsListCache(): void
+    {
+        // For file/database cache drivers, we can't easily clear by pattern
+        // So we'll clear the entire cache when cars are modified
+        // This is a simple approach that works with all cache drivers
+        Cache::flush();
     }/**
      * Store a newly created resource in storage.
      */
@@ -138,8 +149,8 @@ class CarController extends Controller
 
             $newCar = Car::create($validatedData);
 
-            Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
-            Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to new car creation.");
+            $this->clearCarsListCache();
+            Log::info("Car list cache cleared due to new car creation.");
             return $newCar;
         });
 
@@ -228,8 +239,8 @@ class CarController extends Controller
 
             Cache::forget("car:{$id}");
             Log::info("Cache cleared for car ID: {$id} due to update.");
-            Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
-            Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to car update.");
+            $this->clearCarsListCache();
+            Log::info("Car list cache cleared due to car update.");
             
             return $currentCar;
         });
@@ -252,8 +263,8 @@ class CarController extends Controller
 
             Cache::forget("car:{$id}");
             Log::info("Cache cleared for car ID: {$id} due to deletion.");
-            Cache::tags(self::CACHE_TAG_CARS_LIST)->flush();
-            Log::info("Car list cache cleared (tags: [" . self::CACHE_TAG_CARS_LIST . "]) due to car deletion.");
+            $this->clearCarsListCache();
+            Log::info("Car list cache cleared due to car deletion.");
         });
 
         return response()->json(null, 204);
