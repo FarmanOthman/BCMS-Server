@@ -16,6 +16,8 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         $this->call([
+            TestUsersSeeder::class, // Add test users for Postman testing
+            TestDataSeeder::class, // Add test data for all resources
             MakeSeeder::class,
             ModelSeeder::class,
             // Add other seeders here if needed
