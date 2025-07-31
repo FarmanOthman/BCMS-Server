@@ -35,6 +35,7 @@ class UserController extends Controller
                 'email' => $validatedData['email'],
                 'name' => $validatedData['name'],
                 'role' => $validatedData['role'],
+                'password' => \Illuminate\Support\Facades\Hash::make($validatedData['password']),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -159,6 +160,7 @@ class UserController extends Controller
                 'name' => 'sometimes|string|max:255',
                 'email' => 'sometimes|email|max:255',
                 'role' => 'sometimes|string|in:Manager,User',
+                'password' => 'sometimes|string|min:8|confirmed',
             ]);
 
             // Get the user
@@ -170,15 +172,24 @@ class UserController extends Controller
             
             Log::info('Updating user directly in local DB: ' . $id);
             
+            // Prepare update data
+            $updateData = [
+                'name' => $validatedData['name'] ?? $user->name,
+                'email' => $validatedData['email'] ?? $user->email,
+                'role' => $validatedData['role'] ?? $user->role,
+                'updated_at' => now(),
+            ];
+
+            // Hash password if provided
+            if (isset($validatedData['password'])) {
+                $updateData['password'] = \Illuminate\Support\Facades\Hash::make($validatedData['password']);
+                Log::info('Password updated for user: ' . $id);
+            }
+            
             // Update the user in the local database
             $updated = DB::table('users')
                 ->where('id', $id)
-                ->update([
-                    'name' => $validatedData['name'] ?? $user->name,
-                    'email' => $validatedData['email'] ?? $user->email,
-                    'role' => $validatedData['role'] ?? $user->role,
-                    'updated_at' => now(),
-                ]);
+                ->update($updateData);
                 
             if ($updated) {
                 $updatedUser = DB::table('users')->where('id', $id)->first();
@@ -189,6 +200,12 @@ class UserController extends Controller
             }
             
             return response()->json(['message' => 'Failed to update user.'], 500);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error updating user: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
         } catch (Exception $e) {
             Log::error('Error updating user: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to update user: ' . $e->getMessage()], 500);

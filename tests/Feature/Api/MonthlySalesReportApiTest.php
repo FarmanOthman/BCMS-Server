@@ -14,8 +14,8 @@ class MonthlySalesReportApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected $managerToken = 'manager-test-token';
-    protected $userToken = 'user-test-token';
+    protected $managerToken;
+    protected $userToken;
     protected $manager;
     protected $user;
     
@@ -36,6 +36,16 @@ class MonthlySalesReportApiTest extends TestCase
             'name' => 'Monthly Report Test User'
         ]);
         
+        // Create proper tokens for authentication
+        $this->managerToken = base64_encode(json_encode([
+            'user_id' => $this->manager->id,
+            'exp' => time() + 3600
+        ]));
+        
+        $this->userToken = base64_encode(json_encode([
+            'user_id' => $this->user->id,
+            'exp' => time() + 3600
+        ]));
     }
     
     protected function tearDown(): void

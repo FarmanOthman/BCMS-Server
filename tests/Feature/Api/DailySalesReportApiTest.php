@@ -13,8 +13,8 @@ class DailySalesReportApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected $managerToken = 'manager-test-token';
-    protected $userToken = 'user-test-token';
+    protected $managerToken;
+    protected $userToken;
     protected $manager;
     protected $user;
     protected $car;
@@ -39,16 +39,16 @@ class DailySalesReportApiTest extends TestCase
         // Create a car for testing
         $this->car = Car::factory()->create();
         
-        // Removed all SupabaseService and Supabase references.
+        // Create proper tokens for authentication
+        $this->managerToken = base64_encode(json_encode([
+            'user_id' => $this->manager->id,
+            'exp' => time() + 3600
+        ]));
         
-        // Setup the mock for the manager token
-        // Removed all SupabaseService and Supabase references.
-        
-        // Setup the mock for the user token
-        // Removed all SupabaseService and Supabase references.
-        
-        // Setup the mock for invalid tokens
-        // Removed all SupabaseService and Supabase references.
+        $this->userToken = base64_encode(json_encode([
+            'user_id' => $this->user->id,
+            'exp' => time() + 3600
+        ]));
     }
     
     protected function tearDown(): void
@@ -105,11 +105,11 @@ class DailySalesReportApiTest extends TestCase
     }
     
     /**
-     * Test that a manager can create a daily sales report.
+     * Test that manual daily report creation is not available (reports are auto-generated).
      *
      * @return void
      */
-    public function test_manager_can_create_daily_sales_report()
+    public function test_manual_daily_report_creation_is_not_available()
     {
         $this->actingAs($this->manager);
         
@@ -127,21 +127,9 @@ class DailySalesReportApiTest extends TestCase
             'Authorization' => 'Bearer ' . $this->managerToken,
         ])->postJson('/bcms/reports/daily', $reportData);
 
-        $response->assertStatus(201)
-                 ->assertJsonFragment([
-                     'report_date' => '2025-06-10',
-                     'total_sales' => 5,
-                     'total_revenue' => '50000.00',
-                     'total_profit' => '15000.00',
-                     'avg_profit_per_sale' => '3000.00',
-                     'highest_single_profit' => '5000.00'
-                 ]);
+        $response->assertStatus(405); // Method Not Allowed
         
-        $this->assertDatabaseHas('dailysalesreport', [
-            'report_date' => '2025-06-10',
-            'created_by' => $this->manager->id,
-            'updated_by' => $this->manager->id
-        ]);
+        // Note: Daily reports are now generated automatically via scheduled tasks
     }
     
     /**
@@ -276,7 +264,7 @@ class DailySalesReportApiTest extends TestCase
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $this->userToken,
         ])->postJson('/bcms/reports/daily', $reportData);
-        $response->assertStatus(403);
+        $response->assertStatus(405); // Method Not Allowed - POST endpoint removed
         
         // Test PUT (update)
         $response = $this->withHeaders([
@@ -321,7 +309,7 @@ class DailySalesReportApiTest extends TestCase
             'avg_profit_per_sale' => 3000
         ];
         $response = $this->postJson('/bcms/reports/daily', $reportData);
-        $response->assertStatus(401);
+        $response->assertStatus(405); // Method Not Allowed - POST endpoint removed
         
         // Test PUT (update)
         $response = $this->putJson('/bcms/reports/daily/' . $reportDate, ['total_sales' => 10]);
@@ -343,28 +331,10 @@ class DailySalesReportApiTest extends TestCase
             'Authorization' => 'Bearer ' . $this->managerToken,
         ])->postJson('/bcms/reports/daily', []);
 
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors([
-                     'report_date', 'total_sales', 'total_revenue', 
-                     'total_profit', 'avg_profit_per_sale'
-                 ]);
+        $response->assertStatus(405); // Method Not Allowed - POST endpoint removed
         
-        // Test duplicate date validation
-        $existingDate = '2025-06-30';
-        DailySalesReport::factory()->forDate($existingDate)->create();
-        
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->managerToken,
-        ])->postJson('/bcms/reports/daily', [
-            'report_date' => $existingDate,
-            'total_sales' => 5,
-            'total_revenue' => 50000,
-            'total_profit' => 15000,
-            'avg_profit_per_sale' => 3000
-        ]);
-
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['report_date']);
+        // Note: Manual report creation is no longer supported
+        // Reports are generated automatically via scheduled tasks
     }
     
     /**

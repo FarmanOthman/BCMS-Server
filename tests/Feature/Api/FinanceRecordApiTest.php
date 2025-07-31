@@ -23,25 +23,27 @@ class FinanceRecordApiTest extends TestCase
         
         // Create test users
         $this->manager = User::factory()->create([
-            'email' => 'finance-test-manager@example.com',
+            'email' => 'test-manager@example.com',
             'role' => 'Manager',
-            'name' => 'Finance Test Manager'
+            'name' => 'Test Manager'
         ]);
         
         $this->user = User::factory()->create([
-            'email' => 'finance-test-user@example.com', 
+            'email' => 'test-user@example.com', 
             'role' => 'User',
-            'name' => 'Finance Test User'
+            'name' => 'Test User'
         ]);
         
-        // Setup the mock for the manager token
-        $this->actingAs($this->manager);
+        // Create proper tokens for authentication
+        $this->managerToken = base64_encode(json_encode([
+            'user_id' => $this->manager->id,
+            'exp' => time() + 3600
+        ]));
         
-        // Setup the mock for the user token
-        $this->actingAs($this->user);
-        
-        // Setup the mock for invalid tokens
-        $this->actingAs(null);
+        $this->userToken = base64_encode(json_encode([
+            'user_id' => $this->user->id,
+            'exp' => time() + 3600
+        ]));
     }
     
     protected function tearDown(): void
@@ -72,9 +74,7 @@ class FinanceRecordApiTest extends TestCase
     }
       public function test_manager_can_create_finance_record()
     {
-        // Login the manager
-        $this->actingAs($this->manager);
-          $recordData = [
+        $recordData = [
             'type' => 'income',
             'category' => 'sale',
             'cost' => 5000,
@@ -114,9 +114,7 @@ class FinanceRecordApiTest extends TestCase
     
     public function test_manager_can_update_finance_record()
     {
-        // Login the manager
-        $this->actingAs($this->manager);
-          $record = FinanceRecord::factory()->create([
+        $record = FinanceRecord::factory()->create([
             'created_by' => $this->manager->id,
             'updated_by' => $this->manager->id,
             'type' => 'expense',
@@ -140,9 +138,6 @@ class FinanceRecordApiTest extends TestCase
     
     public function test_manager_can_delete_finance_record()
     {
-        // Login the manager
-        $this->actingAs($this->manager);
-        
         $record = FinanceRecord::factory()->create([
             'created_by' => $this->manager->id,
             'updated_by' => $this->manager->id
@@ -294,9 +289,6 @@ class FinanceRecordApiTest extends TestCase
             ['type' => 'expense', 'category' => 'purchase', 'cost' => 8000, 'record_date' => now()->format('Y-m-d')],
             ['type' => 'expense', 'category' => 'utilities', 'cost' => 2000, 'record_date' => now()->format('Y-m-d')],
         ];
-        
-        // Login the manager and create all records
-        $this->actingAs($this->manager);
         
         foreach ($incomeRecords as $record) {
             $this->withHeaders([

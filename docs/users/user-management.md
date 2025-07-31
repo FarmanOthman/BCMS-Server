@@ -186,7 +186,9 @@ Content-Type: application/json
 {
   "name": "Updated Name",
   "email": "updated@example.com",
-  "role": "Manager"
+  "role": "Manager",
+  "password": "newpassword123",
+  "password_confirmation": "newpassword123"
 }
 ```
 
@@ -195,6 +197,8 @@ Content-Type: application/json
 - **name** (string): User's full name
 - **email** (string): Valid email address, must be unique
 - **role** (string): Either "Manager" or "User"
+- **password** (string): New password, minimum 8 characters
+- **password_confirmation** (string): Must match password field
 
 #### Response (200 OK)
 

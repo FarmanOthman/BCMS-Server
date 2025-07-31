@@ -14,11 +14,10 @@ class CarApiTest extends TestCase
 {
     use RefreshDatabase;
     
-    protected $managerToken = 'manager-test-token';
-    protected $userToken = 'user-test-token';
+    protected $managerToken;
+    protected $userToken;
     protected $manager;
     protected $user;
-    protected $supabaseServiceMock;
     protected $make;
     protected $model;
     
@@ -43,34 +42,16 @@ class CarApiTest extends TestCase
         $this->make = Make::factory()->create();
         $this->model = CarModel::factory()->create(['make_id' => $this->make->id]);
         
-        // Mock the SupabaseService
-        $this->supabaseServiceMock = Mockery::mock(SupabaseService::class);
-        $this->app->instance(SupabaseService::class, $this->supabaseServiceMock);
+        // Create proper tokens for authentication
+        $this->managerToken = base64_encode(json_encode([
+            'user_id' => $this->manager->id,
+            'exp' => time() + 3600
+        ]));
         
-        // Setup the mock for the manager token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->managerToken)
-            ->andReturn([
-                'id' => $this->manager->id,
-                'email' => $this->manager->email,
-                'name' => $this->manager->name,
-                'role' => 'Manager'
-            ]);
-            
-        // Setup the mock for the user token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->with($this->userToken)
-            ->andReturn([
-                'id' => $this->user->id,
-                'email' => $this->user->email,
-                'name' => $this->user->name,
-                'role' => 'User'
-            ]);
-            
-        // Setup the mock for invalid tokens - this will handle any other token
-        $this->supabaseServiceMock->shouldReceive('getUserByAccessToken')
-            ->withAnyArgs()
-            ->andReturnNull();
+        $this->userToken = base64_encode(json_encode([
+            'user_id' => $this->user->id,
+            'exp' => time() + 3600
+        ]));
     }
     
     protected function tearDown(): void

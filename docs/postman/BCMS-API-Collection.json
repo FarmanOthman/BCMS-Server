@@ -232,9 +232,9 @@
 					"request": {
 						"method": "GET",
 						"url": {
-							"raw": "{{BASE_URL}}/bcms/cars/1",
+							"raw": "{{BASE_URL}}/bcms/cars/{{TEST_CAR_ID}}",
 							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "cars", "1"]
+							"path": ["bcms", "cars", "{{TEST_CAR_ID}}"]
 						}
 					}
 				},
@@ -254,14 +254,33 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"make_id\": 1,\n    \"model_id\": 1,\n    \"year\": 2020,\n    \"color\": \"Red\",\n    \"mileage\": 50000,\n    \"price\": 25000,\n    \"public_price\": 27000,\n    \"status\": \"available\",\n    \"description\": \"Well maintained car\"\n}"
+							"raw": "{\n    \"make_id\": \"{{TEST_MAKE_ID}}\",\n    \"model_id\": \"{{TEST_MODEL_ID}}\",\n    \"year\": 2020,\n    \"color\": \"Red\",\n    \"mileage\": 50000,\n    \"description\": \"Well maintained car with full service history\",\n    \"cost_price\": 25000,\n    \"public_price\": 27000,\n    \"transition_cost\": 500,\n    \"status\": \"available\",\n    \"vin\": \"1HGBH41JXMN109186\",\n    \"repair_items\": \"[{\\\"description\\\": \\\"Oil change\\\", \\\"cost\\\": 50}, {\\\"description\\\": \\\"Brake pads\\\", \\\"cost\\\": 200}]\"\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/cars",
 							"host": ["{{BASE_URL}}"],
 							"path": ["bcms", "cars"]
 						}
-					}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has car data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.car).to.exist;",
+									"    pm.expect(jsonData.car.id).to.exist;",
+									"    pm.environment.set(\"TEST_CAR_ID\", jsonData.car.id);",
+									"});"
+								]
+							}
+						}
+					]
 				},
 				{
 					"name": "Update Car (Auth Required)",
@@ -279,14 +298,34 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"price\": 24000,\n    \"public_price\": 26000,\n    \"status\": \"sold\"\n}"
+							"raw": "{\n    \"color\": \"Blue\",\n    \"mileage\": 52000,\n    \"description\": \"Updated description - Excellent condition\",\n    \"cost_price\": 24000,\n    \"public_price\": 26000,\n    \"status\": \"sold\",\n    \"transition_cost\": 600,\n    \"repair_items\": \"[{\\\"description\\\": \\\"Oil change\\\", \\\"cost\\\": 50}, {\\\"description\\\": \\\"Brake pads\\\", \\\"cost\\\": 200}, {\\\"description\\\": \\\"Tire replacement\\\", \\\"cost\\\": 400}]\"\n}"
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/bcms/cars/1",
+							"raw": "{{BASE_URL}}/bcms/cars/{{TEST_CAR_ID}}",
 							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "cars", "1"]
+							"path": ["bcms", "cars", "{{TEST_CAR_ID}}"]
 						}
-					}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has updated car data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.car).to.exist;",
+									"    pm.expect(jsonData.car.cost_price).to.equal(24000);",
+									"    pm.expect(jsonData.car.public_price).to.equal(26000);",
+									"    pm.expect(jsonData.car.status).to.equal(\"sold\");",
+									"});"
+								]
+							}
+						}
+					]
 				},
 				{
 					"name": "Delete Car (Auth Required)",
@@ -299,9 +338,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/bcms/cars/1",
+							"raw": "{{BASE_URL}}/bcms/cars/{{TEST_CAR_ID}}",
 							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "cars", "1"]
+							"path": ["bcms", "cars", "{{TEST_CAR_ID}}"]
 						}
 					}
 				}

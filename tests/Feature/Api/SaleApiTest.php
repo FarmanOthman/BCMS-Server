@@ -15,8 +15,8 @@ use Mockery;
 class SaleApiTest extends TestCase
 {
     use RefreshDatabase;
-      protected $managerToken = 'manager-test-token';
-    protected $userToken = 'user-test-token';
+      protected $managerToken;
+    protected $userToken;
     protected $manager;
     protected $user;
     protected $make;
@@ -58,8 +58,20 @@ class SaleApiTest extends TestCase
                 ['description' => 'Brake system', 'cost' => 500]
             ]
         ]);
-          // Create a buyer for testing
+        
+        // Create a buyer for testing
         $this->buyer = Buyer::factory()->create();
+        
+        // Create proper tokens for authentication
+        $this->managerToken = base64_encode(json_encode([
+            'user_id' => $this->manager->id,
+            'exp' => time() + 3600
+        ]));
+        
+        $this->userToken = base64_encode(json_encode([
+            'user_id' => $this->user->id,
+            'exp' => time() + 3600
+        ]));
     }
     
     protected function tearDown(): void
@@ -85,9 +97,6 @@ class SaleApiTest extends TestCase
     }
       public function test_manager_can_create_a_sale()
     {
-        // Login the manager
-        $this->actingAs($this->manager);
-        
         $saleData = [
             'car_id' => $this->car->id,
             'buyer_id' => $this->buyer->id,
@@ -146,9 +155,6 @@ class SaleApiTest extends TestCase
     }
       public function test_manager_can_update_a_sale()
     {
-        // Login the manager
-        $this->actingAs($this->manager);
-        
         $sale = Sale::factory()->create([
             'car_id' => $this->car->id,
             'buyer_id' => $this->buyer->id,
@@ -181,9 +187,6 @@ class SaleApiTest extends TestCase
     }
       public function test_manager_can_delete_a_sale()
     {
-        // Login the manager
-        $this->actingAs($this->manager);
-        
         $sale = Sale::factory()->create([
             'car_id' => $this->car->id,
             'buyer_id' => $this->buyer->id
