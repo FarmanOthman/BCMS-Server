@@ -21,6 +21,9 @@ class YearlySalesReport extends Model
         'best_month',
         'best_month_profit',
         'profit_margin',
+        'yoy_growth',
+        'total_finance_cost',
+        'total_net_profit',
         'created_by',
         'updated_by',
     ];    protected $casts = [
@@ -33,6 +36,9 @@ class YearlySalesReport extends Model
         'avg_monthly_profit' => 'decimal:2',
         'best_month_profit' => 'decimal:2',
         'profit_margin' => 'decimal:2',
+        'yoy_growth' => 'decimal:2',
+        'total_finance_cost' => 'decimal:2',
+        'total_net_profit' => 'decimal:2',
     ];
 
     public function createdBy()

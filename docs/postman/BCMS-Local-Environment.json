@@ -57,6 +57,12 @@
 			"enabled": true
 		},
 		{
+			"key": "TEST_CAR_ID_2",
+			"value": "2",
+			"type": "default",
+			"enabled": true
+		},
+		{
 			"key": "TEST_MAKE_ID",
 			"value": "1",
 			"type": "default",

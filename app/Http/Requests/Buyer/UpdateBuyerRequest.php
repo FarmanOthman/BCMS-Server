@@ -36,6 +36,8 @@ class UpdateBuyerRequest extends FormRequest
                 Rule::unique('buyer', 'phone')->ignore($buyerId),
             ],
             'address' => 'nullable|string',
+            'car_ids' => 'sometimes|required|array|min:1',
+            'car_ids.*' => 'required|uuid|exists:cars,id',
         ];
     }
 }

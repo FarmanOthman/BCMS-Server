@@ -23,6 +23,7 @@ class Buyer extends Model
         'name',
         'phone',
         'address',
+        'car_ids', // Array of car IDs that this buyer is interested in or has purchased
         'created_by',
         'updated_by',
     ];
@@ -37,6 +38,7 @@ class Buyer extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'address' => 'string', // Ensure address is string, even if null
+        'car_ids' => 'array', // Cast car_ids as array
     ];
 
     /**
