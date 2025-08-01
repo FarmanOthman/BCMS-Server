@@ -384,10 +384,17 @@ class CarApiTest extends TestCase
     // Test for public access to the index endpoint
     public function test_anyone_can_list_cars()
     {
-        // Create test cars
+        // Create test cars - mix of available and sold
         Car::factory()->count(3)->create([
             'make_id' => $this->make->id,
-            'model_id' => $this->model->id
+            'model_id' => $this->model->id,
+            'status' => 'available'
+        ]);
+        
+        Car::factory()->count(2)->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id,
+            'status' => 'sold'
         ]);
 
         // Make request without any authentication token
@@ -398,7 +405,165 @@ class CarApiTest extends TestCase
                      'data',
                      'meta' => ['page', 'limit', 'total', 'pages']
                  ]);
+        
+        // Should only show available cars (3), not sold cars (2)
         $this->assertCount(3, $response->json('data'));
+        $this->assertEquals(3, $response->json('meta.total'));
+        
+        // Verify all returned cars have 'available' status
+        foreach ($response->json('data') as $car) {
+            $this->assertEquals('available', $car['status']);
+        }
+    }
+
+    public function test_anyone_can_view_public_car_details()
+    {
+        // Create a test car with sensitive data
+        $car = Car::factory()->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id,
+            'cost_price' => 15000,
+            'transition_cost' => 500,
+            'total_repair_cost' => 1000,
+            'selling_price' => 18000,
+            'public_price' => 20000,
+            'status' => 'available',
+            'created_by' => $this->manager->id,
+            'updated_by' => $this->manager->id
+        ]);
+
+        // Make request without any authentication token
+        $response = $this->getJson("/bcms/cars/{$car->id}");
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure([
+                     'id', 'year', 'vin', 'public_price', 'status', 'color', 'mileage', 'description',
+                     'make' => ['id', 'name'],
+                     'model' => ['id', 'name']
+                 ]);
+
+        // Verify sensitive data is NOT included
+        $response->assertJsonMissing([
+            'cost_price',
+            'transition_cost',
+            'total_repair_cost',
+            'selling_price',
+            'created_by',
+            'updated_by',
+            'sold_by',
+            'repair_items'
+        ]);
+
+        // Verify only public data is included
+        $response->assertJson([
+            'id' => $car->id,
+            'year' => $car->year,
+            'vin' => $car->vin,
+            'public_price' => $car->public_price,
+            'status' => $car->status
+        ]);
+    }
+
+    public function test_sold_cars_are_not_accessible_through_public_endpoints()
+    {
+        // Create a test car with sold status
+        $car = Car::factory()->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id,
+            'status' => 'sold',
+            'public_price' => 20000,
+            'created_by' => $this->manager->id,
+            'updated_by' => $this->manager->id
+        ]);
+
+        // Make request without any authentication token to public endpoint
+        $response = $this->getJson("/bcms/cars/{$car->id}");
+
+        // Should return 404 for sold cars
+        $response->assertStatus(404)
+                 ->assertJson(['message' => 'Car not found or not available']);
+    }
+
+    public function test_authenticated_users_can_access_full_car_details()
+    {
+        // Create a test car with sensitive data
+        $car = Car::factory()->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id,
+            'cost_price' => 15000,
+            'transition_cost' => 500,
+            'total_repair_cost' => 1000,
+            'selling_price' => 18000,
+            'public_price' => 20000,
+            'status' => 'available',
+            'created_by' => $this->manager->id,
+            'updated_by' => $this->manager->id
+        ]);
+
+        // Make request with manager token to admin endpoint
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->managerToken,
+        ])->getJson("/bcms/admin/cars/{$car->id}");
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure([
+                     'id', 'year', 'vin', 'cost_price', 'transition_cost', 'total_repair_cost',
+                     'selling_price', 'public_price', 'status', 'created_by', 'updated_by',
+                     'make' => ['id', 'name'],
+                     'model' => ['id', 'name'],
+                     'created_by' => ['id', 'name', 'email', 'role'],
+                     'updated_by' => ['id', 'name', 'email', 'role']
+                 ]);
+
+        // Verify sensitive data IS included for authenticated users
+        $response->assertJson([
+            'id' => $car->id,
+            'cost_price' => $car->cost_price,
+            'transition_cost' => $car->transition_cost,
+            'total_repair_cost' => $car->total_repair_cost,
+            'selling_price' => $car->selling_price,
+            'public_price' => $car->public_price
+        ]);
+    }
+
+    public function test_authenticated_users_can_access_sold_cars_through_admin_endpoints()
+    {
+        // Create a test car with sold status
+        $car = Car::factory()->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id,
+            'status' => 'sold',
+            'cost_price' => 15000,
+            'transition_cost' => 500,
+            'total_repair_cost' => 1000,
+            'selling_price' => 18000,
+            'public_price' => 20000,
+            'created_by' => $this->manager->id,
+            'updated_by' => $this->manager->id
+        ]);
+
+        // Make request with manager token to admin endpoint
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->managerToken,
+        ])->getJson("/bcms/admin/cars/{$car->id}");
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure([
+                     'id', 'year', 'vin', 'cost_price', 'transition_cost', 'total_repair_cost',
+                     'selling_price', 'public_price', 'status', 'created_by', 'updated_by',
+                     'make' => ['id', 'name'],
+                     'model' => ['id', 'name'],
+                     'created_by' => ['id', 'name', 'email', 'role'],
+                     'updated_by' => ['id', 'name', 'email', 'role']
+                 ]);
+
+        // Verify sold car data is accessible to authenticated users
+        $response->assertJson([
+            'id' => $car->id,
+            'status' => 'sold',
+            'cost_price' => $car->cost_price,
+            'selling_price' => $car->selling_price
+        ]);
     }
       // Test for total_repair_cost calculation
     public function test_total_repair_cost_calculation_is_accurate()

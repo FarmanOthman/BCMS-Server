@@ -23,7 +23,7 @@ class CarController extends Controller
     const CACHE_PREFIX_CARS_LIST = 'cars_list';
 
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource (Admin endpoint - no caching).
      */
     public function index(Request $request)
     {
@@ -32,71 +32,48 @@ class CarController extends Controller
         $page  = $request->query('page', 1);
         $makeId = $request->query('make_id'); // Filter by make_id
         $modelId = $request->query('model_id'); // Filter by model_id
+        $year = $request->query('year'); // Filter by year
 
         // Ensure limit and page are positive integers
         $limit = max(1, (int)$limit);
         $page  = max(1, (int)$page);
 
-        // Define the cache key based on request parameters, including filters
-        $cacheKey = "cars:page:{$page}:limit:{$limit}";
+        Log::info("Fetching admin cars list with filters - make_id: {$makeId}, model_id: {$modelId}, year: {$year}");
+        
+        // Use Eloquent for querying with relationships (no caching for admin)
+        $carsQuery = Car::with(['make', 'model', 'createdBy', 'updatedBy']);
+
+        // Apply filters if provided
         if ($makeId) {
-            $cacheKey .= ":make:{$makeId}";
+            $carsQuery->where('make_id', $makeId);
         }
         if ($modelId) {
-            $cacheKey .= ":model:{$modelId}";
+            $carsQuery->where('model_id', $modelId);
+        }
+        if ($year) {
+            $carsQuery->where('year', $year);
         }
 
-        Log::info("Attempting to retrieve from cache with key: {$cacheKey}");
+        $total = $carsQuery->count();
+        Log::info("Total admin records after filters, before pagination: {$total}");
 
-        // Cache duration in seconds (e.g., 60 seconds = 1 minute)
-        $cacheDuration = 60;
-        $isCacheHit = true; // Assume cache hit initially
-
-        // Retrieve data from cache or database
-        $data = Cache::remember($cacheKey, $cacheDuration, function () use ($limit, $page, $makeId, $modelId, $cacheKey, &$isCacheHit) {
-            Log::info("Cache miss for key: {$cacheKey}. Fetching from database.");
-            $isCacheHit = false; // Set to false if closure is executed
-            
-            // Use Eloquent for querying with relationships
-            $carsQuery = Car::with(['make', 'model', 'createdBy', 'updatedBy']);
-
-            // Apply filters if provided
-            if ($makeId) {
-                $carsQuery->where('make_id', $makeId);
-            }
-            if ($modelId) {
-                $carsQuery->where('model_id', $modelId);
-            }
-
-            $total = $carsQuery->count();
-            Log::info("Total records after filters, before pagination: {$total}");
-
-            $cars = $carsQuery->orderByDesc('created_at')
-                              ->skip(($page - 1) * $limit)
-                              ->take($limit)
-                              ->get();
-            
-            Log::info("Data fetched from database. Cars count: " . $cars->count());
-
-            return [
-                'cars' => $cars,
-                'total' => $total,
-            ];
-        });
-
-        if ($isCacheHit) {
-            Log::info("Cache hit for key: {$cacheKey}");
-        }
+        $cars = $carsQuery->orderByDesc('created_at')
+                          ->skip(($page - 1) * $limit)
+                          ->take($limit)
+                          ->get();
+        
+        Log::info("Admin data fetched from database. Cars count: " . $cars->count());
 
         return response()->json([
-            'data' => $data['cars'],
+            'data' => $cars,
             'meta' => [
                 'page' => $page,
                 'limit' => $limit,
-                'make_id' => $makeId, // Include filter params in meta
+                'make_id' => $makeId,
                 'model_id' => $modelId,
-                'total' => $data['total'],
-                'pages' => ceil($data['total'] / $limit)
+                'year' => $year,
+                'total' => $total,
+                'pages' => ceil($total / $limit)
             ]
         ]);
     }    /**
@@ -131,6 +108,14 @@ class CarController extends Controller
         // So we'll clear the entire cache when cars are modified
         // This is a simple approach that works with all cache drivers
         Cache::flush();
+    }
+
+    /**
+     * Clear public car cache for a specific car.
+     */
+    private function clearPublicCarCache(string $carId): void
+    {
+        Cache::forget("car_public:{$carId}");
     }/**
      * Store a newly created resource in storage.
      */
@@ -159,7 +144,8 @@ class CarController extends Controller
             $newCar = Car::create($validatedData);
 
             $this->clearCarsListCache();
-            Log::info("Car list cache cleared due to new car creation.");
+            $this->clearPublicCarCache($newCar->id);
+            Log::info("Car list cache and public cache cleared due to new car creation.");
             return $newCar;
         });
 
@@ -190,6 +176,164 @@ class CarController extends Controller
             return response()->json(['message' => 'Car not found'], 404);
         }
         return response()->json($car);
+    }
+
+    /**
+     * Display public car information (filtered for public access).
+     * This method returns only the information that should be visible to the public.
+     */
+    public function showPublic(string $id)
+    {
+        $cacheKey = "car_public:{$id}";
+        Log::info("Attempting to retrieve public car from cache with key: {$cacheKey}");
+        $cacheDuration = 60; // Cache for 1 minute
+        $isCacheHit = true;
+
+        $car = Cache::remember($cacheKey, $cacheDuration, function () use ($id, $cacheKey, &$isCacheHit) {
+            Log::info("Cache miss for key: {$cacheKey}. Fetching public car from database.");
+            $isCacheHit = false;
+            return Car::with(['make', 'model'])->where('status', 'available')->find($id);
+        });
+
+        if ($isCacheHit) {
+            Log::info("Cache hit for key: {$cacheKey}");
+        }
+
+        if (!$car) {
+            return response()->json(['message' => 'Car not found or not available'], 404);
+        }
+
+        // Return only public-safe information
+        $publicData = [
+            'id' => $car->id,
+            'year' => $car->year,
+            'vin' => $car->vin,
+            'public_price' => $car->public_price,
+            'status' => $car->status,
+            'color' => $car->color,
+            'mileage' => $car->mileage,
+            'description' => $car->description,
+            'make' => $car->make ? [
+                'id' => $car->make->id,
+                'name' => $car->make->name,
+            ] : null,
+            'model' => $car->model ? [
+                'id' => $car->model->id,
+                'name' => $car->model->name,
+            ] : null,
+        ];
+
+        return response()->json($publicData);
+    }
+
+    /**
+     * Display a public listing of cars (filtered for public access).
+     * This method returns only the information that should be visible to the public.
+     */
+    public function indexPublic(Request $request)
+    {
+        // Read pagination inputs, with defaults
+        $limit = $request->query('limit', 10);
+        $page  = $request->query('page', 1);
+        $makeId = $request->query('make_id'); // Filter by make_id
+        $modelId = $request->query('model_id'); // Filter by model_id
+        $year = $request->query('year'); // Filter by year
+
+        // Ensure limit and page are positive integers
+        $limit = max(1, (int)$limit);
+        $page  = max(1, (int)$page);
+
+        // Define the cache key based on request parameters, including filters
+        $cacheKey = "cars_public:page:{$page}:limit:{$limit}";
+        if ($makeId) {
+            $cacheKey .= ":make:{$makeId}";
+        }
+        if ($modelId) {
+            $cacheKey .= ":model:{$modelId}";
+        }
+        if ($year) {
+            $cacheKey .= ":year:{$year}";
+        }
+
+        Log::info("Attempting to retrieve public cars from cache with key: {$cacheKey}");
+
+        // Cache duration in seconds (e.g., 60 seconds = 1 minute)
+        $cacheDuration = 60;
+        $isCacheHit = true; // Assume cache hit initially
+
+        // Retrieve data from cache or database
+        $data = Cache::remember($cacheKey, $cacheDuration, function () use ($limit, $page, $makeId, $modelId, $year, $cacheKey, &$isCacheHit) {
+            Log::info("Cache miss for key: {$cacheKey}. Fetching public cars from database.");
+            $isCacheHit = false; // Set to false if closure is executed
+            
+            // Use Eloquent for querying with relationships - only show available cars
+            $carsQuery = Car::with(['make', 'model'])->where('status', 'available');
+
+            // Apply filters if provided
+            if ($makeId) {
+                $carsQuery->where('make_id', $makeId);
+            }
+            if ($modelId) {
+                $carsQuery->where('model_id', $modelId);
+            }
+            if ($year) {
+                $carsQuery->where('year', $year);
+            }
+
+            $total = $carsQuery->count();
+            Log::info("Total available public records after filters, before pagination: {$total}");
+
+            $cars = $carsQuery->orderByDesc('created_at')
+                              ->skip(($page - 1) * $limit)
+                              ->take($limit)
+                              ->get();
+            
+            Log::info("Public data fetched from database. Cars count: " . $cars->count());
+
+            return [
+                'cars' => $cars,
+                'total' => $total,
+            ];
+        });
+
+        if ($isCacheHit) {
+            Log::info("Cache hit for key: {$cacheKey}");
+        }
+
+        // Filter the cars to only include public-safe information
+        $publicCars = $data['cars']->map(function ($car) {
+            return [
+                'id' => $car->id,
+                'year' => $car->year,
+                'vin' => $car->vin,
+                'public_price' => $car->public_price,
+                'status' => $car->status,
+                'color' => $car->color,
+                'mileage' => $car->mileage,
+                'description' => $car->description,
+                'make' => $car->make ? [
+                    'id' => $car->make->id,
+                    'name' => $car->make->name,
+                ] : null,
+                'model' => $car->model ? [
+                    'id' => $car->model->id,
+                    'name' => $car->model->name,
+                ] : null,
+            ];
+        });
+
+        return response()->json([
+            'data' => $publicCars,
+            'meta' => [
+                'page' => $page,
+                'limit' => $limit,
+                'make_id' => $makeId,
+                'model_id' => $modelId,
+                'year' => $year,
+                'total' => $data['total'],
+                'pages' => ceil($data['total'] / $limit)
+            ]
+        ]);
     }    /**
      * Update the specified resource in storage.
      */
@@ -247,9 +391,10 @@ class CarController extends Controller
             }
 
             Cache::forget("car:{$id}");
+            $this->clearPublicCarCache($id);
             Log::info("Cache cleared for car ID: {$id} due to update.");
             $this->clearCarsListCache();
-            Log::info("Car list cache cleared due to car update.");
+            Log::info("Car list cache and public cache cleared due to car update.");
             
             return $currentCar;
         });
@@ -298,8 +443,9 @@ class CarController extends Controller
             $integratedSalesService = new IntegratedSalesService(new ReportGenerationService());
             $result = $integratedSalesService->processSale($validated, $id);
 
-            // Clear the cars list cache (this is specific to the controller)
+            // Clear the cars list cache and public cache (this is specific to the controller)
             $this->clearCarsListCache();
+            $this->clearPublicCarCache($id);
 
             return response()->json($result, 201);
 
@@ -346,9 +492,10 @@ class CarController extends Controller
             $car->delete();
 
             Cache::forget("car:{$id}");
+            $this->clearPublicCarCache($id);
             Log::info("Cache cleared for car ID: {$id} due to deletion.");
             $this->clearCarsListCache();
-            Log::info("Car list cache cleared due to car deletion.");
+            Log::info("Car list cache and public cache cleared due to car deletion.");
         });
 
         return response()->json(null, 204);

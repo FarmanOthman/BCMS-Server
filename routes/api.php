@@ -36,17 +36,26 @@ Route::prefix('bcms')->group(function () {
     // Get current user info (requires authentication) - middleware removed
     Route::get('/auth/user', [AuthController::class, 'getUser']);
     
-    // Public endpoints for listing and viewing cars
-    Route::get('/cars', [CarController::class, 'index']);
-    Route::get('/cars/{car}', [CarController::class, 'show']);
+    // Public endpoints for listing and viewing cars (filtered for public access)
+    Route::get('/cars', [CarController::class, 'indexPublic']);
+    Route::get('/cars/{car}', [CarController::class, 'showPublic']);
 
-    // Car sales endpoint - Complete sales process (must be before apiResource)
-    Route::post('/cars/{id}/sell', [CarController::class, 'sellCar'])
+    // Authenticated car endpoints for full details (accessible to Manager and User roles)
+    Route::get('/admin/cars', [CarController::class, 'index'])
+        ->middleware(['role:Manager,User']);
+    Route::get('/admin/cars/{car}', [CarController::class, 'show'])
         ->middleware(['role:Manager,User']);
 
     // Other Car operations - Accessible to Manager and User roles
-    Route::apiResource('/cars', CarController::class)
-        ->except(['index', 'show'])
+    Route::post('/cars', [CarController::class, 'store'])
+        ->middleware(['role:Manager,User']);
+    Route::put('/cars/{car}', [CarController::class, 'update'])
+        ->middleware(['role:Manager,User']);
+    Route::delete('/cars/{car}', [CarController::class, 'destroy'])
+        ->middleware(['role:Manager,User']);
+
+    // Car sales endpoint - Complete sales process (must be after other car routes)
+    Route::post('/cars/{id}/sell', [CarController::class, 'sellCar'])
         ->middleware(['role:Manager,User']);
 
     // API resources for Makes and Models, accessible to Manager and User roles
