@@ -8,6 +8,8 @@ use App\Http\Requests\Car\UpdateCarRequest;
 use Illuminate\Http\Request;
 use App\Models\Car;
 use App\Models\Sale; // Added import for Sale model
+use App\Models\Buyer; // Added import for Buyer model
+use App\Services\ReportGenerationService; // Added import for ReportGenerationService
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -103,10 +105,16 @@ class CarController extends Controller
     {
         $totalRepairCost = 0;
         if (!empty($repairItems)) {
-            // repair_items is already an array due to model casting or previous json_decode
-            foreach ($repairItems as $repair) {
-                if (isset($repair['cost']) && is_numeric($repair['cost'])) {
-                    $totalRepairCost += (float)$repair['cost'];
+            // Handle both string and array inputs
+            if (is_string($repairItems)) {
+                $repairItems = json_decode($repairItems, true);
+            }
+            
+            if (is_array($repairItems)) {
+                foreach ($repairItems as $repair) {
+                    if (isset($repair['cost']) && is_numeric($repair['cost'])) {
+                        $totalRepairCost += (float)$repair['cost'];
+                    }
                 }
             }
         }
@@ -247,6 +255,115 @@ class CarController extends Controller
 
         return response()->json($car->load(['make', 'model', 'createdBy', 'updatedBy']));
     }    /**
+     * Sell a car - Complete sales process including buyer creation
+     */
+    public function sellCar(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'buyer_name' => 'required|string|max:255',
+            'buyer_phone' => 'required|string|min:7|max:20|unique:buyer,phone',
+            'buyer_address' => 'nullable|string',
+            'sale_price' => 'required|numeric|min:0',
+            'sale_date' => 'required|date|before_or_equal:today',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            $result = DB::transaction(function () use ($validated, $id) {
+                // Set JWT claims for RLS
+                $userId = Auth::user() ? Auth::user()->id : null;
+                DB::statement("select set_config('request.jwt.claims', :claims, true)", [
+                    'claims' => json_encode(['sub' => $userId]),
+                ]);
+
+                $car = Car::findOrFail($id);
+
+                if ($car->status === 'sold') {
+                    throw new \Exception('Car is already sold.');
+                }
+
+                // Create buyer
+                $buyer = Buyer::create([
+                    'name' => $validated['buyer_name'],
+                    'phone' => $validated['buyer_phone'],
+                    'address' => $validated['buyer_address'] ?? null,
+                    'car_ids' => [$car->id],
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
+                ]);
+
+                // Calculate total repair costs using the existing method
+                $totalRepairCost = $this->calculateTotalRepairCost($car->repair_items);
+
+                // Calculate purchase cost exactly like in comprehensive sales test
+                $purchaseCost = (float)$car->cost_price + (float)($car->transition_cost ?? 0) + (float)$totalRepairCost;
+                $profitLoss = (float)$validated['sale_price'] - (float)$purchaseCost;
+
+                // Create sale with comprehensive data
+                $sale = Sale::create([
+                    'car_id' => $car->id,
+                    'buyer_id' => $buyer->id,
+                    'sale_price' => (float)$validated['sale_price'],
+                    'purchase_cost' => (float)$purchaseCost,
+                    'profit_loss' => (float)$profitLoss,
+                    'sale_date' => $validated['sale_date'],
+                    'notes' => $validated['notes'] ?? "Sale of {$car->year} {$car->make->name} {$car->model->name}",
+                    'created_by' => $userId,
+                    'updated_by' => $userId,
+                ]);
+
+                // Update car status to 'sold' and set selling_price
+                $car->status = 'sold';
+                $car->selling_price = (float)$validated['sale_price'];
+                $car->updated_by = $userId;
+                $car->save();
+
+                // Clear cache
+                Cache::forget("car:{$id}");
+                $this->clearCarsListCache();
+
+                // Generate reports automatically for the sale date
+                try {
+                    $reportService = new ReportGenerationService();
+                    $reportService->generateReportsForSale($validated['sale_date']);
+                    Log::info("Automatically generated reports for sale date: {$validated['sale_date']}");
+                } catch (\Exception $e) {
+                    Log::error("Failed to generate reports for sale date {$validated['sale_date']}: " . $e->getMessage());
+                    // Don't fail the sale if report generation fails
+                }
+
+                // Return comprehensive response with detailed financial breakdown
+                return [
+                    'sale' => $sale->load(['car', 'car.make', 'car.model', 'buyer']),
+                    'buyer' => $buyer,
+                    'car' => $car->load(['make', 'model']),
+                    'financial_summary' => [
+                        'sale_price' => (float)$validated['sale_price'],
+                        'purchase_cost' => (float)$purchaseCost,
+                        'profit_loss' => (float)$profitLoss,
+                        'profit_margin' => $purchaseCost > 0 ? round(($profitLoss / $purchaseCost) * 100, 2) : 0,
+                        'cost_breakdown' => [
+                            'base_cost' => (float)$car->cost_price,
+                            'transition_cost' => (float)($car->transition_cost ?? 0),
+                            'repair_cost' => (float)$totalRepairCost,
+                            'total_purchase_cost' => (float)$purchaseCost,
+                        ],
+                        'repair_items' => is_array($car->repair_items) ? $car->repair_items : json_decode($car->repair_items, true) ?? [],
+                    ]
+                ];
+            });
+
+            return response()->json($result, 201);
+
+        } catch (\Exception $e) {
+            Log::error('Car sale failed: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to process car sale. ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)

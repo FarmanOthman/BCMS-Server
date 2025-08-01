@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Models\Sale;
+use App\Observers\SaleObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register the Sale observer for automatic report generation
+        Sale::observe(SaleObserver::class);
+
         // Define a Gate for creating users
         // This checks if the authenticated user has the 'Manager' role
         Gate::define('create', function (User $user, string $model) {

@@ -431,4 +431,164 @@ class CarApiTest extends TestCase
         // Check that the calculated total_repair_cost matches our expected total
         $this->assertEquals($expectedTotal, $response->json('total_repair_cost'));
     }
+
+    /**
+     * Test the complete car sales process endpoint
+     */
+    public function test_car_sales_endpoint()
+    {
+        // Create a test car
+        $car = Car::factory()->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id,
+            'status' => 'available',
+            'cost_price' => 20000,
+            'public_price' => 25000,
+            'transition_cost' => 500,
+            'repair_items' => json_encode([
+                ['description' => 'Oil change', 'cost' => 50],
+                ['description' => 'Brake pads', 'cost' => 200]
+            ])
+        ]);
+
+        $saleData = [
+            'buyer_name' => 'John Doe',
+            'buyer_phone' => '+1234567890',
+            'buyer_address' => '123 Main St, City, State',
+            'sale_price' => 24000,
+            'sale_date' => now()->format('Y-m-d'),
+            'notes' => 'Test sale via API'
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->managerToken,
+        ])->postJson("/bcms/cars/{$car->id}/sell", $saleData);
+
+        $response->assertStatus(201)
+            ->assertJsonStructure([
+                'sale' => [
+                    'id', 'car_id', 'buyer_id', 'sale_price', 'purchase_cost', 
+                    'profit_loss', 'sale_date', 'notes', 'created_by', 'updated_by',
+                    'car' => ['id', 'make', 'model'],
+                    'buyer' => ['id', 'name', 'phone']
+                ],
+                'buyer' => ['id', 'name', 'phone', 'address'],
+                'car' => ['id', 'status', 'selling_price', 'make', 'model'],
+                'financial_summary' => [
+                    'sale_price', 'purchase_cost', 'profit_loss', 'profit_margin',
+                    'cost_breakdown' => [
+                        'base_cost', 'transition_cost', 'repair_cost', 'total_purchase_cost'
+                    ],
+                    'repair_items'
+                ]
+            ]);
+
+        // Verify the sale was created correctly
+        $this->assertDatabaseHas('sale', [
+            'car_id' => $car->id,
+            'sale_price' => 24000,
+            'sale_date' => $saleData['sale_date']
+        ]);
+
+        // Verify the buyer was created
+        $this->assertDatabaseHas('buyer', [
+            'name' => 'John Doe',
+            'phone' => '+1234567890'
+        ]);
+
+        // Verify the car status was updated
+        $this->assertDatabaseHas('cars', [
+            'id' => $car->id,
+            'status' => 'sold',
+            'selling_price' => 24000
+        ]);
+
+        // Verify financial calculations
+        $responseData = $response->json();
+        $expectedPurchaseCost = 20000 + 500 + 50 + 200; // cost_price + transition_cost + repair_costs
+        $expectedProfitLoss = 24000 - $expectedPurchaseCost;
+        
+        $this->assertEquals($expectedPurchaseCost, $responseData['financial_summary']['purchase_cost']);
+        $this->assertEquals($expectedProfitLoss, $responseData['financial_summary']['profit_loss']);
+        $this->assertEquals(24000, $responseData['financial_summary']['sale_price']);
+        
+        // Verify detailed cost breakdown
+        $costBreakdown = $responseData['financial_summary']['cost_breakdown'];
+        $this->assertEquals(20000, $costBreakdown['base_cost']);
+        $this->assertEquals(500, $costBreakdown['transition_cost']);
+        $this->assertEquals(250, $costBreakdown['repair_cost']); // 50 + 200
+        $this->assertEquals($expectedPurchaseCost, $costBreakdown['total_purchase_cost']);
+        
+        // Verify repair items are included
+        $this->assertIsArray($responseData['financial_summary']['repair_items']);
+        $this->assertCount(2, $responseData['financial_summary']['repair_items']);
+        
+        // Verify that reports were automatically generated
+        $this->assertDatabaseHas('dailysalesreport', [
+            'report_date' => $saleData['sale_date'],
+            'total_sales' => 1,
+            'total_revenue' => 24000,
+            'total_profit' => $expectedProfitLoss
+        ]);
+        
+        $dateObj = \Carbon\Carbon::parse($saleData['sale_date']);
+        $this->assertDatabaseHas('monthlysalesreport', [
+            'year' => $dateObj->year,
+            'month' => $dateObj->month,
+            'total_sales' => 1,
+            'total_revenue' => 24000,
+            'total_profit' => $expectedProfitLoss
+        ]);
+        
+        $this->assertDatabaseHas('yearlysalesreport', [
+            'year' => $dateObj->year,
+            'total_sales' => 1,
+            'total_revenue' => 24000,
+            'total_profit' => $expectedProfitLoss
+        ]);
+    }
+
+    /**
+     * Test car sales endpoint with already sold car
+     */
+    public function test_car_sales_endpoint_already_sold()
+    {
+        $car = Car::factory()->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id,
+            'status' => 'sold'
+        ]);
+
+        $saleData = [
+            'buyer_name' => 'John Doe',
+            'buyer_phone' => '+1234567890',
+            'sale_price' => 24000,
+            'sale_date' => now()->format('Y-m-d')
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->managerToken,
+        ])->postJson("/bcms/cars/{$car->id}/sell", $saleData);
+
+        $response->assertStatus(500)
+            ->assertJson(['error' => 'Failed to process car sale. Car is already sold.']);
+    }
+
+    /**
+     * Test car sales endpoint validation
+     */
+    public function test_car_sales_endpoint_validation()
+    {
+        $car = Car::factory()->create([
+            'make_id' => $this->make->id,
+            'model_id' => $this->model->id
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->managerToken,
+        ])->postJson("/bcms/cars/{$car->id}/sell", []);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['buyer_name', 'buyer_phone', 'sale_price', 'sale_date']);
+    }
 }

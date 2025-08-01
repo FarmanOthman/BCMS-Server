@@ -40,6 +40,10 @@ Route::prefix('bcms')->group(function () {
     Route::get('/cars', [CarController::class, 'index']);
     Route::get('/cars/{car}', [CarController::class, 'show']);
 
+    // Car sales endpoint - Complete sales process (must be before apiResource)
+    Route::post('/cars/{id}/sell', [CarController::class, 'sellCar'])
+        ->middleware(['role:Manager,User']);
+
     // Other Car operations - Accessible to Manager and User roles
     Route::apiResource('/cars', CarController::class)
         ->except(['index', 'show'])
@@ -75,7 +79,7 @@ Route::prefix('bcms')->group(function () {
         Route::post('/yearly', [YearlySalesReportController::class, 'store']);
         Route::put('/yearly/{year}', [YearlySalesReportController::class, 'update']);
         Route::delete('/yearly/{year}', [YearlySalesReportController::class, 'destroy']);
-        Route::post('/yearly/generate', [YearlySalesReportController::class, 'generateReport']);
+
     });
 
     // API resource for Finance Records, restricted to Managers

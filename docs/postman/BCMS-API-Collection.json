@@ -343,6 +343,76 @@
 							"path": ["bcms", "cars", "{{TEST_CAR_ID}}"]
 						}
 					}
+				},
+				{
+					"name": "Sell Car (Complete Sales Process)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{ACCESS_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"buyer_name\": \"John Doe\",\n    \"buyer_phone\": \"+1234567890\",\n    \"buyer_address\": \"123 Main St, City, State\",\n    \"sale_price\": 25000,\n    \"sale_date\": \"2024-01-15\",\n    \"notes\": \"Cash sale - excellent condition car\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/bcms/cars/{{TEST_CAR_ID}}/sell",
+							"host": ["{{BASE_URL}}"],
+							"path": ["bcms", "cars", "{{TEST_CAR_ID}}", "sell"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has sale data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sale).to.exist;",
+									"    pm.expect(jsonData.buyer).to.exist;",
+									"    pm.expect(jsonData.car).to.exist;",
+									"    pm.expect(jsonData.financial_summary).to.exist;",
+									"    pm.expect(jsonData.sale.id).to.exist;",
+									"    pm.expect(jsonData.buyer.id).to.exist;",
+									"    pm.environment.set(\"TEST_SALE_ID\", jsonData.sale.id);",
+									"    pm.environment.set(\"TEST_BUYER_ID\", jsonData.buyer.id);",
+									"});",
+									"",
+									"pm.test(\"Financial calculations are correct\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var summary = jsonData.financial_summary;",
+									"    pm.expect(summary.sale_price).to.be.a('number');",
+									"    pm.expect(summary.purchase_cost).to.be.a('number');",
+									"    pm.expect(summary.profit_loss).to.be.a('number');",
+									"    pm.expect(summary.profit_margin).to.be.a('number');",
+									"    pm.expect(summary.cost_breakdown).to.exist;",
+									"    pm.expect(summary.cost_breakdown.base_cost).to.be.a('number');",
+									"    pm.expect(summary.cost_breakdown.transition_cost).to.be.a('number');",
+									"    pm.expect(summary.cost_breakdown.repair_cost).to.be.a('number');",
+									"    pm.expect(summary.cost_breakdown.total_purchase_cost).to.be.a('number');",
+									"    pm.expect(summary.repair_items).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Car status is updated to sold\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.car.status).to.equal(\"sold\");",
+									"    pm.expect(jsonData.car.selling_price).to.equal(jsonData.financial_summary.sale_price);",
+									"});"
+								]
+							}
+						}
+					]
 				}
 			]
 		},
@@ -1069,31 +1139,6 @@
 							"raw": "{{BASE_URL}}/bcms/reports/yearly/2024",
 							"host": ["{{BASE_URL}}"],
 							"path": ["bcms", "reports", "yearly", "2024"]
-						}
-					}
-				},
-				{
-					"name": "Generate Yearly Report",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{ACCESS_TOKEN}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"year\": 2024\n}"
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/reports/yearly/generate",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "reports", "yearly", "generate"]
 						}
 					}
 				}
