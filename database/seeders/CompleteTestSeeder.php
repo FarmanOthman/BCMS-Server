@@ -13,7 +13,7 @@ class CompleteTestSeeder extends Seeder
      */
     public function run(): void
     {
-        // Run TestDataSeeder (TestUsersSeeder is called separately by the command)
+        // Run TestDataSeeder
         $this->call([
             TestDataSeeder::class,
         ]);

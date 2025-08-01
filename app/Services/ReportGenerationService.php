@@ -177,31 +177,31 @@ class ReportGenerationService
             DB::transaction(function () use ($date, $year, $month) {
                 $tracker = ReportGenerationTracker::getInstance();
                 
-                // Check if we need to generate daily report
+                // Always generate/update daily report when a new sale is created
+                Log::info("Generating/updating daily report for date: {$date}");
+                $this->generateDailyReport($date);
+                
+                // Update tracker only if this is a new date
                 if ($tracker->needsDailyReport($date)) {
-                    Log::info("Generating daily report for date: {$date}");
-                    $this->generateDailyReport($date);
                     $tracker->updateLastDailyReportDate($date);
-                } else {
-                    Log::info("Daily report already exists for date: {$date}, skipping generation");
                 }
                 
-                // Check if we need to generate monthly report
+                // Always generate/update monthly report when a new sale is created
+                Log::info("Generating/updating monthly report for year: {$year}, month: {$month}");
+                $this->generateMonthlyReport($year, $month);
+                
+                // Update tracker only if this is a new month
                 if ($tracker->needsMonthlyReport($year, $month)) {
-                    Log::info("Generating monthly report for year: {$year}, month: {$month}");
-                    $this->generateMonthlyReport($year, $month);
                     $tracker->updateLastMonthlyReportDate($year, $month);
-                } else {
-                    Log::info("Monthly report already exists for year: {$year}, month: {$month}, skipping generation");
                 }
                 
-                // Check if we need to generate yearly report
+                // Always generate/update yearly report when a new sale is created
+                Log::info("Generating/updating yearly report for year: {$year}");
+                $this->generateYearlyReport($year);
+                
+                // Update tracker only if this is a new year
                 if ($tracker->needsYearlyReport($year)) {
-                    Log::info("Generating yearly report for year: {$year}");
-                    $this->generateYearlyReport($year);
                     $tracker->updateLastYearlyReportDate($year);
-                } else {
-                    Log::info("Yearly report already exists for year: {$year}, skipping generation");
                 }
             });
             
