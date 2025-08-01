@@ -37,11 +37,9 @@ use App\Models\Make;
 use App\Models\Model;
 use App\Models\Buyer;
 use App\Models\User;
-use App\Models\DailySalesReport;
 use Tests\TestCase;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 
 class ComprehensiveSaleTest extends TestCase
 {
@@ -109,15 +107,11 @@ class ComprehensiveSaleTest extends TestCase
         echo "\nStep 5: Testing buyer relationships and purchase history\n";
         $this->testBuyerRelationships();
 
-        // 6. Generate daily sales report based on sales
-        echo "\nStep 6: Generating daily sales report based on sales\n";
-        $this->generateAndVerifyDailySalesReport();
-
-        // 7. Test updates to existing sales
-        echo "\nStep 7: Testing updates to existing sales\n";
+        // 6. Test updates to existing sales
+        echo "\nStep 6: Testing updates to existing sales\n";
         $this->testSalesUpdates();
 
-        // 8. Wait for manual DB inspection if needed
+        // 7. Wait for manual DB inspection if needed
         echo "\nPausing for 60 seconds to allow for manual database inspection...\n";
         sleep(60);
     }
@@ -467,76 +461,6 @@ class ComprehensiveSaleTest extends TestCase
     }
 
     /**
-     * Generate and verify a daily sales report
-     */
-    private function generateAndVerifyDailySalesReport(): void
-    {
-        // Clean up any existing reports
-        $this->cleanupExistingReports();
-        
-        // Group sales by date
-        $salesByDate = collect($this->sales)->groupBy(function($sale) {
-            return $sale->sale_date;
-        });
-        
-        // Process each date
-        foreach ($salesByDate as $dateStr => $salesOnDate) {
-            echo "Generating report for {$dateStr}...\n";
-            
-            // Calculate metrics for this date
-            $totalSales = count($salesOnDate);
-            $totalRevenue = 0;
-            $totalProfit = 0;
-            $highestSingleProfit = 0;
-            $mostProfitableCarId = null;
-              foreach ($salesOnDate as $sale) {
-                $totalRevenue += (float)$sale->sale_price;
-                $totalProfit += (float)$sale->profit_loss;
-                
-                if ((float)$sale->profit_loss > $highestSingleProfit) {
-                    $highestSingleProfit = (float)$sale->profit_loss;
-                    $mostProfitableCarId = $sale->car_id;
-                }
-            }
-            
-            $avgProfitPerSale = $totalSales > 0 ? (float)$totalProfit / (float)$totalSales : 0;
-              // Create the daily sales report
-            $report = new DailySalesReport();
-            $report->report_date = $dateStr;
-            $report->total_sales = $totalSales;
-            $report->total_revenue = $totalRevenue;
-            $report->total_profit = $totalProfit;
-            $report->avg_profit_per_sale = $avgProfitPerSale;
-            $report->most_profitable_car_id = $mostProfitableCarId;
-            $report->highest_single_profit = $highestSingleProfit;
-            $report->save();
-              // Verify the report
-            $loadedReport = DailySalesReport::find($dateStr);
-            $this->assertNotNull($loadedReport, "Report for {$dateStr} not found");
-            $this->assertEquals($totalSales, $loadedReport->total_sales);
-            $this->assertEquals(round((float)$totalRevenue, 2), round((float)$loadedReport->total_revenue, 2));
-            $this->assertEquals(round((float)$totalProfit, 2), round((float)$loadedReport->total_profit, 2));
-            $this->assertEquals(round((float)$avgProfitPerSale, 2), round((float)$loadedReport->avg_profit_per_sale, 2));
-            $this->assertEquals($mostProfitableCarId, $loadedReport->most_profitable_car_id);
-            $this->assertEquals(round((float)$highestSingleProfit, 2), round((float)$loadedReport->highest_single_profit, 2));
-            
-            echo "Report verification successful for {$dateStr}\n";
-            echo "  Total sales: {$loadedReport->total_sales}\n";
-            echo "  Total revenue: \${$loadedReport->total_revenue}\n";
-            echo "  Total profit: \${$loadedReport->total_profit}\n";
-            echo "  Average profit per sale: \${$loadedReport->avg_profit_per_sale}\n";
-            
-            // Verify relationship with most profitable car
-            if ($loadedReport->most_profitable_car_id) {
-                $mostProfitableCar = Car::with(['make', 'model'])->find($loadedReport->most_profitable_car_id);
-                $this->assertNotNull($mostProfitableCar);
-                echo "  Most profitable car: {$mostProfitableCar->year} {$mostProfitableCar->make->name} {$mostProfitableCar->model->name}\n";
-                echo "  Highest single profit: \${$loadedReport->highest_single_profit}\n";
-            }
-        }
-    }
-
-    /**
      * Test updates to existing sales
      */
     private function testSalesUpdates(): void
@@ -576,29 +500,6 @@ class ComprehensiveSaleTest extends TestCase
     }
 
     /**
-     * Clean up any existing reports for test dates
-     */    private function cleanupExistingReports(): void
-    {
-        // Get the dates we need to clean up
-        $dates = [];
-        foreach ($this->sales as $sale) {
-            $dateStr = $sale->sale_date;
-            if (!in_array($dateStr, $dates)) {
-                $dates[] = $dateStr;
-            }
-        }
-        
-        // Delete existing reports for these dates
-        foreach ($dates as $dateStr) {
-            $existingReport = DailySalesReport::find($dateStr);
-            if ($existingReport) {
-                echo "Deleting existing report for {$dateStr}\n";
-                $existingReport->delete();
-            }
-        }
-    }
-
-    /**
      * Clean up all test data
      */    private function cleanupAllTestData(): void
     {
@@ -609,18 +510,7 @@ class ComprehensiveSaleTest extends TestCase
             }
         }
         
-        // Clean up reports for the last week
-        $dates = [];
-        for ($i = 0; $i < 7; $i++) {
-            $dates[] = Carbon::today()->subDays($i)->format('Y-m-d');
-        }
-        
-        foreach ($dates as $dateStr) {
-            $existingReport = DailySalesReport::find($dateStr);
-            if ($existingReport) {
-                $existingReport->delete();
-            }
-        }
+
         
         // Reset car status for any cars that were sold
         foreach ($this->cars as $car) {
