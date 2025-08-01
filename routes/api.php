@@ -25,6 +25,8 @@ Route::prefix('bcms')->group(function () {
     });
     
     // Public authentication routes
+    Route::post('/auth/signup', [AuthController::class, 'signUp'])
+        ->middleware('throttle:5,1'); // Rate limit: 5 attempts per minute
     Route::post('/auth/signin', [AuthController::class, 'signIn'])
         ->middleware('throttle:5,1'); // Rate limit: 5 attempts per minute
 
@@ -35,6 +37,10 @@ Route::prefix('bcms')->group(function () {
 
     // Get current user info (requires authentication) - middleware removed
     Route::get('/auth/user', [AuthController::class, 'getUser']);
+    
+    // Get current user info via UserController (requires authentication)
+    Route::get('/users/me', [UserController::class, 'me'])
+        ->middleware(['role:Manager,User']);
     
     // Public endpoints for listing and viewing cars (filtered for public access)
     Route::get('/cars', [CarController::class, 'indexPublic']);
