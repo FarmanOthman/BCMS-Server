@@ -6,12 +6,10 @@ This document provides a comprehensive mapping between the Laravel routes and Po
 
 | Method | Route | Controller Method | Postman Collection | Status |
 |--------|-------|-------------------|-------------------|---------|
-| POST | `/bcms/auth/signup` | `AuthController@signUp` | ✅ Sign Up | ✅ **ADDED** |
 | POST | `/bcms/auth/signin` | `AuthController@signIn` | ✅ Sign In | ✅ Present |
 | POST | `/bcms/auth/refresh` | `AuthController@refreshToken` | ✅ Refresh Token | ✅ Present |
 | POST | `/bcms/auth/signout` | `AuthController@signOut` | ✅ Sign Out | ✅ Present |
 | GET | `/bcms/auth/user` | `AuthController@getUser` | ✅ Get Current User | ✅ Present |
-| GET | `/bcms/users/me` | `UserController@me` | ✅ Get Current User (via UserController) | ✅ **ADDED** |
 
 ## User Management Endpoints (Manager Only)
 
@@ -122,15 +120,15 @@ This document provides a comprehensive mapping between the Laravel routes and Po
 
 ## Summary
 
-### Total Endpoints: 47
-- **Routes defined**: 47
-- **Postman collection endpoints**: 47
+### Total Endpoints: 45
+- **Routes defined**: 45
+- **Postman collection endpoints**: 45
 - **Missing from Postman**: 0
 - **Missing from routes**: 0
 
-### Recent Additions:
-1. ✅ **POST `/bcms/auth/signup`** - Added to both routes and Postman collection
-2. ✅ **GET `/bcms/users/me`** - Added to both routes and Postman collection
+### Recent Removals:
+1. ❌ **POST `/bcms/auth/signup`** - Removed from both routes and Postman collection
+2. ❌ **GET `/bcms/users/me`** - Removed from both routes and Postman collection
 
 ### Verification Status: ✅ **COMPLETE**
 

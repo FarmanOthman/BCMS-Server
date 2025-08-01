@@ -10,49 +10,6 @@
 			"name": "1. Authentication",
 			"item": [
 				{
-					"name": "Sign Up",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"newuser@example.com\",\n    \"password\": \"password123\",\n    \"name\": \"New User\",\n    \"role\": \"User\"\n}"
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/auth/signup",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "auth", "signup"]
-						}
-					},
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"pm.test(\"Response has user data and tokens\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.user).to.exist;",
-									"    pm.expect(jsonData.access_token).to.exist;",
-									"    pm.expect(jsonData.refresh_token).to.exist;",
-									"    pm.environment.set(\"ACCESS_TOKEN\", jsonData.access_token);",
-									"    pm.environment.set(\"REFRESH_TOKEN\", jsonData.refresh_token);",
-									"    pm.environment.set(\"USER_ID\", jsonData.user.id);",
-									"});"
-								]
-							}
-						}
-					]
-				},
-				{
 					"name": "Sign In",
 					"request": {
 						"method": "POST",
@@ -145,23 +102,6 @@
 							"raw": "{{BASE_URL}}/bcms/auth/user",
 							"host": ["{{BASE_URL}}"],
 							"path": ["bcms", "auth", "user"]
-						}
-					}
-				},
-				{
-					"name": "Get Current User (via UserController)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{ACCESS_TOKEN}}"
-							}
-						],
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/users/me",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "users", "me"]
 						}
 					}
 				}
