@@ -76,7 +76,6 @@ Route::prefix('bcms')->group(function () {
         // Yearly Reports
         Route::get('/yearly-reports', [YearlySalesReportController::class, 'index']);
         Route::get('/yearly', [YearlySalesReportController::class, 'show']);
-        Route::post('/yearly', [YearlySalesReportController::class, 'store']);
         Route::put('/yearly/{year}', [YearlySalesReportController::class, 'update']);
         Route::delete('/yearly/{year}', [YearlySalesReportController::class, 'destroy']);
 

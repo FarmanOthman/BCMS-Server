@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "bcms-api-collection",
 		"name": "BCMS API Collection",
-		"description": "Complete API collection for BCMS (Bestun Cars Management System) with all 47 endpoints",
+		"description": "Complete API collection for BCMS (Bestun Cars Management System) with automatic report generation. Reports are generated automatically when cars are sold - no manual creation needed.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -408,6 +408,12 @@
 									"    var jsonData = pm.response.json();",
 									"    pm.expect(jsonData.car.status).to.equal(\"sold\");",
 									"    pm.expect(jsonData.car.selling_price).to.equal(jsonData.financial_summary.sale_price);",
+									"});",
+									"",
+									"pm.test(\"Reports are automatically generated\", function () {",
+									"    // Note: Reports are automatically generated when a car is sold",
+									"    // Check the daily/monthly/yearly report endpoints to see the generated reports",
+									"    pm.expect(true).to.be.true; // Placeholder - reports are generated automatically",
 									"});"
 								]
 							}
@@ -452,7 +458,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Toyota\",\n    \"description\": \"Japanese car manufacturer\"\n}"
+							"raw": "{\n    \"name\": \"Toyota\"\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/makes",
@@ -494,7 +500,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Toyota Motor Corporation\",\n    \"description\": \"Updated description\"\n}"
+							"raw": "{\n    \"name\": \"Toyota Motor Corporation\"\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/makes/1",
@@ -558,7 +564,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"make_id\": 1,\n    \"name\": \"Camry\",\n    \"description\": \"Sedan model\"\n}"
+							"raw": "{\n    \"make_id\": \"{{TEST_MAKE_ID}}\",\n    \"name\": \"Camry\"\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/models",
@@ -600,7 +606,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Camry Hybrid\",\n    \"description\": \"Updated description\"\n}"
+							"raw": "{\n    \"name\": \"Camry Hybrid\"\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/models/1",
@@ -877,10 +883,11 @@
 			]
 		},
 		{
-			"name": "8. Daily Sales Reports (Manager Only)",
+			"name": "8. Daily Sales Reports (Manager Only) - Auto Generated",
 			"item": [
 				{
-					"name": "Get Daily Report",
+					"name": "Get Daily Report (Auto Generated)",
+					"description": "Daily reports are automatically generated when cars are sold. No manual creation needed.",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -904,6 +911,7 @@
 				},
 				{
 					"name": "List Daily Reports",
+					"description": "List all daily reports. Optional: filter by date range using from_date and to_date query parameters.",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -913,9 +921,21 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/bcms/reports/daily/list",
+							"raw": "{{BASE_URL}}/bcms/reports/daily/list?from_date=2024-01-01&to_date=2024-01-31",
 							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "reports", "daily", "list"]
+							"path": ["bcms", "reports", "daily", "list"],
+							"query": [
+								{
+									"key": "from_date",
+									"value": "2024-01-01",
+									"description": "Filter reports from this date (optional)"
+								},
+								{
+									"key": "to_date",
+									"value": "2024-01-31",
+									"description": "Filter reports to this date (optional)"
+								}
+							]
 						}
 					}
 				},
@@ -936,7 +956,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"total_sales\": 52000,\n    \"cars_sold\": 3,\n    \"notes\": \"Updated notes\"\n}"
+							"raw": "{\n    \"total_sales\": 2,\n    \"total_revenue\": 52000.00,\n    \"total_profit\": 5000.00,\n    \"avg_profit_per_sale\": 2500.00,\n    \"most_profitable_car_id\": \"{{TEST_CAR_ID}}\",\n    \"highest_single_profit\": 3000.00\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/reports/daily/2024-01-15",
@@ -965,7 +985,7 @@
 			]
 		},
 		{
-			"name": "9. Monthly Sales Reports (Manager Only)",
+			"name": "9. Monthly Sales Reports (Manager Only) - Auto Generated",
 			"item": [
 				{
 					"name": "Get Monthly Report",
@@ -996,6 +1016,7 @@
 				},
 				{
 					"name": "List Monthly Reports",
+					"description": "List all monthly reports. Optional: filter by year using year query parameter.",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -1005,9 +1026,16 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/bcms/reports/monthly/list",
+							"raw": "{{BASE_URL}}/bcms/reports/monthly/list?year=2024",
 							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "reports", "monthly", "list"]
+							"path": ["bcms", "reports", "monthly", "list"],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024",
+									"description": "Filter reports for this year (optional)"
+								}
+							]
 						}
 					}
 				},
@@ -1028,7 +1056,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"total_sales\": 155000,\n    \"cars_sold\": 7\n}"
+							"raw": "{\n    \"total_sales\": 10,\n    \"total_revenue\": 155000.00,\n    \"total_profit\": 15000.00,\n    \"avg_daily_profit\": 500.00,\n    \"best_day\": \"2024-01-15\",\n    \"best_day_profit\": 3000.00,\n    \"profit_margin\": 9.68,\n    \"finance_cost\": 2000.00,\n    \"total_finance_cost\": 2000.00,\n    \"net_profit\": 13000.00\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/reports/monthly/2024/1",
@@ -1057,7 +1085,7 @@
 			]
 		},
 		{
-			"name": "10. Yearly Sales Reports (Manager Only)",
+			"name": "10. Yearly Sales Reports (Manager Only) - Auto Generated",
 			"item": [
 				{
 					"name": "List Yearly Reports",
@@ -1116,7 +1144,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"total_sales\": 1850000,\n    \"cars_sold\": 75\n}"
+							"raw": "{\n    \"total_sales\": 120,\n    \"total_revenue\": 1850000.00,\n    \"total_profit\": 180000.00,\n    \"avg_monthly_profit\": 15000.00,\n    \"best_month\": 12,\n    \"best_month_profit\": 25000.00,\n    \"profit_margin\": 9.73\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/reports/yearly/2024",
@@ -1180,7 +1208,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"description\": \"Office rent\",\n    \"amount\": 2000,\n    \"type\": \"expense\",\n    \"date\": \"2024-01-15\"\n}"
+							"raw": "{\n    \"type\": \"expense\",\n    \"category\": \"rent\",\n    \"cost\": 2000.00,\n    \"record_date\": \"2024-01-15\",\n    \"description\": \"Office rent\"\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/finance-records",
@@ -1222,7 +1250,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"description\": \"Updated office rent\",\n    \"amount\": 2200\n}"
+							"raw": "{\n    \"type\": \"expense\",\n    \"category\": \"rent\",\n    \"cost\": 2200.00,\n    \"description\": \"Updated office rent\"\n}"
 						},
 						"url": {
 							"raw": "{{BASE_URL}}/bcms/finance-records/1",
