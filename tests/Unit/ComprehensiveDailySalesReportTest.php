@@ -166,7 +166,7 @@ class ComprehensiveDailySalesReportTest extends TestCase
         echo "*** Check the 'dailysalesreport' table ***\n";
         echo "*** Check the 'sale' table ***\n";
         echo "*** Check the 'car' table ***\n";
-        sleep(60);
+        echo "\nComprehensive daily sales report test completed successfully!\n";
     }
     
     private function createCars()

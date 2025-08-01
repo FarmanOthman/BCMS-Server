@@ -111,9 +111,8 @@ class ComprehensiveSaleTest extends TestCase
         echo "\nStep 6: Testing updates to existing sales\n";
         $this->testSalesUpdates();
 
-        // 7. Wait for manual DB inspection if needed
-        echo "\nPausing for 60 seconds to allow for manual database inspection...\n";
-        sleep(60);
+        // 7. Test completed successfully
+        echo "\nComprehensive sales process test completed successfully!\n";
     }
 
     /**

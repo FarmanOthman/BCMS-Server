@@ -127,7 +127,7 @@ class ComprehensiveYearlySalesReportTest extends TestCase
         echo "*** Check the 'monthlysalesreport' table ***\n";
         echo "*** Check the 'dailysalesreport' table ***\n";
         echo "*** Check the 'financerecord' table ***\n";
-        sleep(60);
+        echo "\nComprehensive yearly sales report test completed successfully!\n";
     }
     
     /**
