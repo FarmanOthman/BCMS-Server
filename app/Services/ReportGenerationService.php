@@ -85,6 +85,18 @@ class ReportGenerationService
             $daysWithSales = $dailyReports->count();
         }
         
+        // Calculate finance costs for the month
+        $financeRecords = \App\Models\FinanceRecord::whereYear('record_date', $year)
+            ->whereMonth('record_date', $month)
+            ->get();
+        
+        $totalFinanceCost = $financeRecords->where('type', 'expense')->sum('cost');
+        $totalFinanceIncome = $financeRecords->where('type', 'income')->sum('cost');
+        $netFinanceCost = $totalFinanceCost - $totalFinanceIncome;
+        
+        // Calculate net profit (sales profit - finance costs)
+        $netProfit = $totalProfit - $netFinanceCost;
+        
         // Create or update monthly report
         $startDate = Carbon::create($year, $month, 1)->format('Y-m-d');
         $endDate = Carbon::create($year, $month, 1)->endOfMonth()->format('Y-m-d');
@@ -99,12 +111,15 @@ class ReportGenerationService
                 'total_profit' => round((float)$totalProfit, 2),
                 'avg_daily_profit' => round((float)$avgProfit, 2),
                 'profit_margin' => round((float)$profitMargin, 2),
+                'finance_cost' => round((float)$totalFinanceCost, 2),
+                'total_finance_cost' => round((float)$netFinanceCost, 2),
+                'net_profit' => round((float)$netProfit, 2),
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
             ]
         );
         
-        Log::info("Generated monthly sales report for {$year}-{$month}: {$totalSales} sales, \${$totalRevenue} revenue, \${$totalProfit} profit");
+        Log::info("Generated monthly sales report for {$year}-{$month}: {$totalSales} sales, \${$totalRevenue} revenue, \${$totalProfit} profit, \${$netFinanceCost} finance cost, \${$netProfit} net profit");
         
         return $report;
     }
@@ -142,6 +157,21 @@ class ReportGenerationService
             $profitMargin = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
         }
         
+        // Calculate total finance costs for the year
+        if ($monthlyReports->isEmpty()) {
+            // If no monthly reports exist, calculate from finance records directly
+            $financeRecords = \App\Models\FinanceRecord::whereYear('record_date', $year)->get();
+            $totalFinanceCost = $financeRecords->where('type', 'expense')->sum('cost');
+            $totalFinanceIncome = $financeRecords->where('type', 'income')->sum('cost');
+            $netFinanceCost = $totalFinanceCost - $totalFinanceIncome;
+        } else {
+            // Calculate from monthly reports (for consistency)
+            $netFinanceCost = $monthlyReports->sum('total_finance_cost');
+        }
+        
+        // Calculate net profit (sales profit - finance costs)
+        $netProfit = $totalProfit - $netFinanceCost;
+        
         // Create or update yearly report
         $report = YearlySalesReport::updateOrCreate(
             ['year' => $year],
@@ -153,12 +183,14 @@ class ReportGenerationService
                 'best_month' => $bestMonth,
                 'best_month_profit' => round((float)$bestMonthProfit, 2),
                 'profit_margin' => round((float)$profitMargin, 2),
+                'total_finance_cost' => round((float)$netFinanceCost, 2),
+                'total_net_profit' => round((float)$netProfit, 2),
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
             ]
         );
         
-        Log::info("Generated yearly sales report for {$year}: {$totalSales} sales, \${$totalRevenue} revenue, \${$totalProfit} profit");
+        Log::info("Generated yearly sales report for {$year}: {$totalSales} sales, \${$totalRevenue} revenue, \${$totalProfit} profit, \${$netFinanceCost} finance cost, \${$netProfit} net profit");
         
         return $report;
     }
@@ -328,6 +360,50 @@ class ReportGenerationService
         } catch (\Exception $e) {
             Log::error("Failed to initialize tracker: " . $e->getMessage());
             throw $e;
+        }
+    }
+    
+    /**
+     * Regenerate reports for a specific month when finance records change
+     */
+    public function regenerateReportsForMonth(int $year, int $month): void
+    {
+        try {
+            DB::transaction(function () use ($year, $month) {
+                Log::info("Regenerating reports for {$year}-{$month} due to finance record changes");
+                
+                // Regenerate monthly report
+                $this->generateMonthlyReport($year, $month);
+                
+                // Regenerate yearly report
+                $this->generateYearlyReport($year);
+            });
+            
+            Log::info("Successfully regenerated reports for {$year}-{$month}");
+        } catch (\Exception $e) {
+            Log::error("Failed to regenerate reports for {$year}-{$month}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Auto-generate reports for new month
+     */
+    public function autoGenerateReportsForNewMonth(): void
+    {
+        $currentDate = Carbon::now();
+        $currentYear = $currentDate->year;
+        $currentMonth = $currentDate->month;
+        
+        // Check if monthly report exists for current month
+        $existingReport = MonthlySalesReport::where('year', $currentYear)
+            ->where('month', $currentMonth)
+            ->first();
+        
+        if (!$existingReport) {
+            Log::info("Auto-generating reports for new month: {$currentYear}-{$currentMonth}");
+            $this->generateMonthlyReport($currentYear, $currentMonth);
+            $this->generateYearlyReport($currentYear);
         }
     }
 } 

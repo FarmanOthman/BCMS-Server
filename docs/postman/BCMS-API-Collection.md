@@ -1,7 +1,7 @@
 # BCMS API Postman Collection
 
 ## Overview
-This document provides a complete Postman collection for the BCMS (Bestun Cars Management System) API with all 47 endpoints organized by functionality.
+This document provides a complete Postman collection for the BCMS (Bestun Cars Management System) API with all endpoints organized by functionality. The API includes enhanced security features where public endpoints only show available cars and hide sensitive business data, while authenticated endpoints provide full access to all information.
 
 ## Base Configuration
 
@@ -47,11 +47,41 @@ if (pm.environment.get("ACCESS_TOKEN")) {
 - Delete User
 
 ### 3. Car Management
-- List Cars (Public)
-- Get Car (Public)
+
+#### Car Listing Filtering
+Both public and admin car listing endpoints support the following query parameters:
+
+**Query Parameters:**
+- `limit` (optional): Number of cars per page (default: 10)
+- `page` (optional): Page number (default: 1)
+- `make_id` (optional): Filter by make ID
+- `model_id` (optional): Filter by model ID
+- `year` (optional): Filter by car year
+
+**Example URLs:**
+```
+GET /bcms/cars?make_id=123&year=2020
+GET /bcms/cars?model_id=456&limit=5&page=2
+GET /bcms/cars?make_id=123&model_id=456&year=2020
+```
+
+**Cache Behavior:**
+- **Public endpoints** (`/bcms/cars`) are cached for 60 seconds
+- **Admin endpoints** (`/bcms/admin/cars`) are not cached for real-time data access
+- Cache keys include all filter parameters for proper cache invalidation
+
+#### Public Endpoints (No Authentication Required)
+- List Available Cars (Public) - Only shows available cars, sold cars are hidden. Supports filtering by make_id, model_id, and year
+- Get Available Car Details (Public) - Returns 404 for sold cars, hides sensitive data
+- Filter Examples (Public) - Various filtering combinations for public car listings
+
+#### Admin Endpoints (Authentication Required)
+- List All Cars (Admin) - Shows all cars including sold ones with full details. Supports filtering by make_id, model_id, and year
+- Get Car Details (Admin) - Shows full car details including sensitive data for all cars
 - Create Car (Auth Required)
 - Update Car (Auth Required)
 - Delete Car (Auth Required)
+- Sell Car (Complete Sales Process with Buyer Creation)
 
 ### 4. Make Management (Auth Required)
 - List Makes

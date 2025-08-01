@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Models\Sale;
+use App\Models\FinanceRecord;
 use App\Observers\SaleObserver;
+use App\Observers\FinanceRecordObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register the Sale observer for automatic report generation
         Sale::observe(SaleObserver::class);
+        
+        // Register the FinanceRecord observer for automatic report regeneration
+        FinanceRecord::observe(FinanceRecordObserver::class);
 
         // Define a Gate for creating users
         // This checks if the authenticated user has the 'Manager' role

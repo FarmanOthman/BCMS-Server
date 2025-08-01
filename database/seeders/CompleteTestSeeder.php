@@ -65,6 +65,9 @@ class CompleteTestSeeder extends Seeder
                 'public_price' => 30000,
                 'status' => 'available',
                 'repair_items' => null,
+                'color' => 'Silver',
+                'mileage' => 45000,
+                'description' => 'Well maintained Toyota Camry',
             ],
             [
                 'make_id' => $honda->id,
@@ -78,6 +81,9 @@ class CompleteTestSeeder extends Seeder
                 'public_price' => 24000,
                 'status' => 'available',
                 'repair_items' => null,
+                'color' => 'Blue',
+                'mileage' => 32000,
+                'description' => 'Excellent condition Honda Civic',
             ],
             [
                 'make_id' => $ford->id,
@@ -91,6 +97,9 @@ class CompleteTestSeeder extends Seeder
                 'public_price' => 18000,
                 'status' => 'maintenance',
                 'repair_items' => '["Transmission repair", "new tires"]',
+                'color' => 'Red',
+                'mileage' => 68000,
+                'description' => 'Ford Focus in maintenance',
             ],
         ];
 
@@ -99,7 +108,6 @@ class CompleteTestSeeder extends Seeder
                 ->where('make_id', $carData['make_id'])
                 ->where('model_id', $carData['model_id'])
                 ->where('year', $carData['year'])
-                ->where('color', $carData['color'])
                 ->first();
 
             if (!$existingCar) {

@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "bcms-api-collection",
 		"name": "BCMS API Collection",
-		"description": "Complete API collection for BCMS (Bestun Cars Management System) with automatic report generation. Reports are generated automatically when cars are sold - no manual creation needed.",
+		"description": "Complete API collection for BCMS (Bestun Cars Management System) with automatic report generation and enhanced security. Public endpoints only show available cars and hide sensitive data. Reports are generated automatically when cars are sold - no manual creation needed.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -217,26 +217,195 @@
 			"name": "3. Car Management",
 			"item": [
 				{
-					"name": "List Cars (Public)",
-					"request": {
-						"method": "GET",
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/cars",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "cars"]
+					"name": "Public Endpoints (No Authentication Required)",
+					"item": [
+						{
+							"name": "List Available Cars (Public)",
+							"description": "Lists only available cars for public viewing. Sold cars are hidden. Supports filtering by make_id, model_id, and year.",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{BASE_URL}}/bcms/cars?limit=10&page=1&make_id={{TEST_MAKE_ID}}&model_id={{TEST_MODEL_ID}}&year=2020",
+									"host": ["{{BASE_URL}}"],
+									"path": ["bcms", "cars"],
+									"query": [
+										{
+											"key": "limit",
+											"value": "10",
+											"description": "Number of cars per page"
+										},
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number"
+										},
+										{
+											"key": "make_id",
+											"value": "{{TEST_MAKE_ID}}",
+											"description": "Filter by make ID (optional)"
+										},
+										{
+											"key": "model_id",
+											"value": "{{TEST_MODEL_ID}}",
+											"description": "Filter by model ID (optional)"
+										},
+										{
+											"key": "year",
+											"value": "2020",
+											"description": "Filter by car year (optional)"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Available Car Details (Public)",
+							"description": "Gets details of an available car. Returns 404 for sold cars.",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{BASE_URL}}/bcms/cars/{{TEST_CAR_ID}}",
+									"host": ["{{BASE_URL}}"],
+									"path": ["bcms", "cars", "{{TEST_CAR_ID}}"]
+								}
+							}
 						}
-					}
+					]
 				},
 				{
-					"name": "Get Car (Public)",
-					"request": {
-						"method": "GET",
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/cars/{{TEST_CAR_ID}}",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "cars", "{{TEST_CAR_ID}}"]
+					"name": "Admin Endpoints (Authentication Required)",
+					"item": [
+						{
+							"name": "List All Cars (Admin)",
+							"description": "Lists all cars including sold ones. Requires authentication. Supports filtering by make_id, model_id, and year.",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{ACCESS_TOKEN}}"
+									}
+								],
+								"url": {
+									"raw": "{{BASE_URL}}/bcms/admin/cars?limit=10&page=1&make_id={{TEST_MAKE_ID}}&model_id={{TEST_MODEL_ID}}&year=2020",
+									"host": ["{{BASE_URL}}"],
+									"path": ["bcms", "admin", "cars"],
+									"query": [
+										{
+											"key": "limit",
+											"value": "10",
+											"description": "Number of cars per page"
+										},
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number"
+										},
+										{
+											"key": "make_id",
+											"value": "{{TEST_MAKE_ID}}",
+											"description": "Filter by make ID (optional)"
+										},
+										{
+											"key": "model_id",
+											"value": "{{TEST_MODEL_ID}}",
+											"description": "Filter by model ID (optional)"
+										},
+										{
+											"key": "year",
+											"value": "2020",
+											"description": "Filter by car year (optional)"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Car Details (Admin)",
+							"description": "Gets full car details including sensitive data. Works for all cars including sold ones.",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{ACCESS_TOKEN}}"
+									}
+								],
+								"url": {
+									"raw": "{{BASE_URL}}/bcms/admin/cars/{{TEST_CAR_ID}}",
+									"host": ["{{BASE_URL}}"],
+									"path": ["bcms", "admin", "cars", "{{TEST_CAR_ID}}"]
+								}
+							}
 						}
-					}
+					]
+				},
+				{
+					"name": "Filter Examples (Public)",
+					"item": [
+						{
+							"name": "Filter by Make Only",
+							"description": "Filter cars by make ID only",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{BASE_URL}}/bcms/cars?make_id={{TEST_MAKE_ID}}",
+									"host": ["{{BASE_URL}}"],
+									"path": ["bcms", "cars"],
+									"query": [
+										{
+											"key": "make_id",
+											"value": "{{TEST_MAKE_ID}}",
+											"description": "Filter by make ID"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Filter by Year Only",
+							"description": "Filter cars by year only",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{BASE_URL}}/bcms/cars?year=2020",
+									"host": ["{{BASE_URL}}"],
+									"path": ["bcms", "cars"],
+									"query": [
+										{
+											"key": "year",
+											"value": "2020",
+											"description": "Filter by car year"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Filter by Make and Model",
+							"description": "Filter cars by both make and model",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{BASE_URL}}/bcms/cars?make_id={{TEST_MAKE_ID}}&model_id={{TEST_MODEL_ID}}",
+									"host": ["{{BASE_URL}}"],
+									"path": ["bcms", "cars"],
+									"query": [
+										{
+											"key": "make_id",
+											"value": "{{TEST_MAKE_ID}}",
+											"description": "Filter by make ID"
+										},
+										{
+											"key": "model_id",
+											"value": "{{TEST_MODEL_ID}}",
+											"description": "Filter by model ID"
+										}
+									]
+								}
+							}
+						}
+					]
 				},
 				{
 					"name": "Create Car (Auth Required)",
@@ -273,9 +442,8 @@
 									"",
 									"pm.test(\"Response has car data\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.car).to.exist;",
-									"    pm.expect(jsonData.car.id).to.exist;",
-									"    pm.environment.set(\"TEST_CAR_ID\", jsonData.car.id);",
+									"    pm.expect(jsonData.id).to.exist;",
+									"    pm.environment.set(\"TEST_CAR_ID\", jsonData.id);",
 									"});"
 								]
 							}
@@ -317,10 +485,9 @@
 									"",
 									"pm.test(\"Response has updated car data\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.car).to.exist;",
-									"    pm.expect(jsonData.car.cost_price).to.equal(24000);",
-									"    pm.expect(jsonData.car.public_price).to.equal(26000);",
-									"    pm.expect(jsonData.car.status).to.equal(\"sold\");",
+									"    pm.expect(jsonData.cost_price).to.equal(24000);",
+									"    pm.expect(jsonData.public_price).to.equal(26000);",
+									"    pm.expect(jsonData.status).to.equal(\"sold\");",
 									"});"
 								]
 							}
