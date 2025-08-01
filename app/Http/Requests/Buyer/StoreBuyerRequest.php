@@ -24,7 +24,7 @@ class StoreBuyerRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|min:7|max:20|unique:buyer,phone',
+            'phone' => 'required|string|min:7|max:20',
             'address' => 'nullable|string',
             'car_ids' => 'required|array|min:1',
             'car_ids.*' => 'required|uuid|exists:cars,id',

@@ -27,14 +27,7 @@ class UpdateBuyerRequest extends FormRequest
 
         return [
             'name' => 'sometimes|required|string|max:255',
-            'phone' => [
-                'sometimes',
-                'required',
-                'string',
-                'min:7',
-                'max:20',
-                Rule::unique('buyer', 'phone')->ignore($buyerId),
-            ],
+            'phone' => 'sometimes|required|string|min:7|max:20',
             'address' => 'nullable|string',
             'car_ids' => 'sometimes|required|array|min:1',
             'car_ids.*' => 'required|uuid|exists:cars,id',

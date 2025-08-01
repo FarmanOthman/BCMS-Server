@@ -345,7 +345,8 @@
 					}
 				},
 				{
-					"name": "Sell Car (Complete Sales Process)",
+					"name": "Sell Car (Complete Sales Process with Buyer Creation)",
+					"description": "Sell a car and automatically create a buyer record. This endpoint handles the complete sales process including buyer creation, sale record creation, car status update, and automatic report generation.",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -377,7 +378,7 @@
 									"    pm.response.to.have.status(201);",
 									"});",
 									"",
-									"pm.test(\"Response has sale data\", function () {",
+									"pm.test(\"Response has complete sales data\", function () {",
 									"    var jsonData = pm.response.json();",
 									"    pm.expect(jsonData.sale).to.exist;",
 									"    pm.expect(jsonData.buyer).to.exist;",
@@ -387,6 +388,15 @@
 									"    pm.expect(jsonData.buyer.id).to.exist;",
 									"    pm.environment.set(\"TEST_SALE_ID\", jsonData.sale.id);",
 									"    pm.environment.set(\"TEST_BUYER_ID\", jsonData.buyer.id);",
+									"});",
+									"",
+									"pm.test(\"Buyer is created with correct details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var buyer = jsonData.buyer;",
+									"    pm.expect(buyer.name).to.equal(\"John Doe\");",
+									"    pm.expect(buyer.phone).to.equal(\"+1234567890\");",
+									"    pm.expect(buyer.address).to.equal(\"123 Main St, City, State\");",
+									"    pm.expect(buyer.car_ids).to.include(jsonData.car.id);",
 									"});",
 									"",
 									"pm.test(\"Financial calculations are correct\", function () {",
