@@ -71,15 +71,13 @@ This document provides a comprehensive mapping between the Laravel routes and Po
 | PUT | `/bcms/buyers/{buyer}` | `BuyerController@update` | ✅ Update Buyer | ✅ Present |
 | DELETE | `/bcms/buyers/{buyer}` | `BuyerController@destroy` | ✅ Delete Buyer | ✅ Present |
 
-## Sale Management Endpoints (Manager Only)
+## Sale Management (Integrated with Car Sales)
 
 | Method | Route | Controller Method | Postman Collection | Status |
 |--------|-------|-------------------|-------------------|---------|
-| GET | `/bcms/sales` | `SaleController@index` | ✅ List Sales | ✅ Present |
-| POST | `/bcms/sales` | `SaleController@store` | ✅ Create Sale | ✅ Present |
-| GET | `/bcms/sales/{sale}` | `SaleController@show` | ✅ Get Sale | ✅ Present |
-| PUT | `/bcms/sales/{sale}` | `SaleController@update` | ✅ Update Sale | ✅ Present |
-| DELETE | `/bcms/sales/{sale}` | `SaleController@destroy` | ✅ Delete Sale | ✅ Present |
+| POST | `/bcms/cars/{id}/sell` | `CarController@sellCar` | ✅ Sell Car (Complete Sales Process) | ✅ Present |
+
+**Note**: Sales are handled through the integrated `sellCar` endpoint which automatically creates buyers, sales records, and generates reports. Manual sales management endpoints have been removed as they are redundant.
 
 ## Daily Sales Reports Endpoints (Manager Only)
 
@@ -120,15 +118,16 @@ This document provides a comprehensive mapping between the Laravel routes and Po
 
 ## Summary
 
-### Total Endpoints: 45
-- **Routes defined**: 45
-- **Postman collection endpoints**: 45
+### Total Endpoints: 40
+- **Routes defined**: 40
+- **Postman collection endpoints**: 40
 - **Missing from Postman**: 0
 - **Missing from routes**: 0
 
 ### Recent Removals:
 1. ❌ **POST `/bcms/auth/signup`** - Removed from both routes and Postman collection
 2. ❌ **GET `/bcms/users/me`** - Removed from both routes and Postman collection
+3. ❌ **Manual Sales Management** - Removed 5 redundant sales endpoints (GET, POST, PUT, DELETE `/bcms/sales`)
 
 ### Verification Status: ✅ **COMPLETE**
 

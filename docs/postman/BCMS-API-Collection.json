@@ -545,25 +545,31 @@
 									"    pm.response.to.have.status(201);",
 									"});",
 									"",
-									"pm.test(\"Response has complete sales data\", function () {",
+									"pm.test(\"Response has clean sales data structure\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.sale).to.exist;",
-									"    pm.expect(jsonData.buyer).to.exist;",
-									"    pm.expect(jsonData.car).to.exist;",
+									"    pm.expect(jsonData.sale_id).to.exist;",
+									"    pm.expect(jsonData.car_info).to.exist;",
+									"    pm.expect(jsonData.buyer_info).to.exist;",
 									"    pm.expect(jsonData.financial_summary).to.exist;",
-									"    pm.expect(jsonData.sale.id).to.exist;",
-									"    pm.expect(jsonData.buyer.id).to.exist;",
-									"    pm.environment.set(\"TEST_SALE_ID\", jsonData.sale.id);",
-									"    pm.environment.set(\"TEST_BUYER_ID\", jsonData.buyer.id);",
+									"    pm.expect(jsonData.sale_details).to.exist;",
+									"    pm.environment.set(\"TEST_SALE_ID\", jsonData.sale_id);",
+									"    pm.environment.set(\"TEST_BUYER_ID\", jsonData.buyer_info.id);",
 									"});",
 									"",
-									"pm.test(\"Buyer is created with correct details\", function () {",
+									"pm.test(\"Buyer info is correct\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    var buyer = jsonData.buyer;",
+									"    var buyer = jsonData.buyer_info;",
 									"    pm.expect(buyer.name).to.equal(\"John Doe\");",
 									"    pm.expect(buyer.phone).to.equal(\"+1234567890\");",
 									"    pm.expect(buyer.address).to.equal(\"123 Main St, City, State\");",
-									"    pm.expect(buyer.car_ids).to.include(jsonData.car.id);",
+									"});",
+									"",
+									"pm.test(\"Car info is correct\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var car = jsonData.car_info;",
+									"    pm.expect(car.status).to.equal(\"sold\");",
+									"    pm.expect(car.make).to.be.a('string');",
+									"    pm.expect(car.model).to.be.a('string');",
 									"});",
 									"",
 									"pm.test(\"Financial calculations are correct\", function () {",
@@ -581,16 +587,12 @@
 									"    pm.expect(summary.repair_items).to.be.an('array');",
 									"});",
 									"",
-									"pm.test(\"Car status is updated to sold\", function () {",
+									"pm.test(\"Sale details are present\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.car.status).to.equal(\"sold\");",
-									"    pm.expect(jsonData.car.selling_price).to.equal(jsonData.financial_summary.sale_price);",
-									"});",
-									"",
-									"pm.test(\"Reports are automatically generated\", function () {",
-									"    // Note: Reports are automatically generated when a car is sold",
-									"    // Check the daily/monthly/yearly report endpoints to see the generated reports",
-									"    pm.expect(true).to.be.true; // Placeholder - reports are generated automatically",
+									"    var details = jsonData.sale_details;",
+									"    pm.expect(details.sale_date).to.exist;",
+									"    pm.expect(details.notes).to.exist;",
+									"    pm.expect(details.created_at).to.exist;",
 									"});"
 								]
 							}
@@ -935,132 +937,9 @@
 				}
 			]
 		},
+
 		{
-			"name": "7. Sale Management (Manager Only)",
-			"item": [
-				{
-					"name": "List Sales",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{ACCESS_TOKEN}}"
-							}
-						],
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/sales",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "sales"]
-						}
-					}
-				},
-				{
-					"name": "Create Sale",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{ACCESS_TOKEN}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"car_id\": \"{{TEST_CAR_ID}}\",\n    \"buyer_id\": \"{{TEST_BUYER_ID}}\",\n    \"sale_price\": 25000,\n    \"sale_date\": \"2024-01-15\",\n    \"notes\": \"Cash sale - excellent condition car\"\n}"
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/sales",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "sales"]
-						}
-					},
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"pm.test(\"Response has sale data\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.id).to.exist;",
-									"    pm.environment.set(\"TEST_SALE_ID\", jsonData.id);",
-									"});"
-								]
-							}
-						}
-					]
-				},
-				{
-					"name": "Get Sale",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{ACCESS_TOKEN}}"
-							}
-						],
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/sales/{{TEST_SALE_ID}}",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "sales", "{{TEST_SALE_ID}}"]
-						}
-					}
-				},
-				{
-					"name": "Update Sale",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{ACCESS_TOKEN}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"sale_price\": 24500,\n    \"notes\": \"Updated sale - financed purchase\"\n}"
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/sales/{{TEST_SALE_ID}}",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "sales", "{{TEST_SALE_ID}}"]
-						}
-					}
-				},
-				{
-					"name": "Delete Sale",
-					"request": {
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{ACCESS_TOKEN}}"
-							}
-						],
-						"url": {
-							"raw": "{{BASE_URL}}/bcms/sales/{{TEST_SALE_ID}}",
-							"host": ["{{BASE_URL}}"],
-							"path": ["bcms", "sales", "{{TEST_SALE_ID}}"]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "8. Daily Sales Reports (Manager Only) - Auto Generated",
+			"name": "7. Daily Sales Reports (Manager Only) - Auto Generated",
 			"item": [
 				{
 					"name": "Get Daily Report (Auto Generated)",
@@ -1162,7 +1041,7 @@
 			]
 		},
 		{
-			"name": "9. Monthly Sales Reports (Manager Only) - Auto Generated",
+			"name": "8. Monthly Sales Reports (Manager Only) - Auto Generated",
 			"item": [
 				{
 					"name": "Get Monthly Report",
@@ -1262,7 +1141,7 @@
 			]
 		},
 		{
-			"name": "10. Yearly Sales Reports (Manager Only) - Auto Generated",
+			"name": "9. Yearly Sales Reports (Manager Only) - Auto Generated",
 			"item": [
 				{
 					"name": "List Yearly Reports",
@@ -1350,7 +1229,7 @@
 			]
 		},
 		{
-			"name": "11. Finance Records (Manager Only)",
+			"name": "10. Finance Records (Manager Only)",
 			"item": [
 				{
 					"name": "List Finance Records",

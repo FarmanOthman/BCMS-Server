@@ -239,7 +239,7 @@ class IntegratedSalesService
     }
 
     /**
-     * Prepare comprehensive response with all sale details.
+     * Prepare clean and concise response with sale details.
      *
      * @param Sale $sale
      * @param Buyer $buyer
@@ -249,19 +249,28 @@ class IntegratedSalesService
      */
     protected function prepareResponse(Sale $sale, Buyer $buyer, Car $car, array $financialMetrics): array
     {
-        $saleWithRelations = $sale->load(['car', 'car.make', 'car.model', 'buyer']);
-        $carWithRelations = $car->load(['make', 'model']);
-
         return [
-            'message' => 'Car sold successfully with integrated buyer creation',
-            'sale' => $saleWithRelations,
-            'buyer' => $buyer,
-            'car' => $carWithRelations,
+            'message' => 'Car sold successfully',
+            'sale_id' => $sale->id,
+            'car_info' => [
+                'id' => $car->id,
+                'vin' => $car->vin,
+                'year' => $car->year,
+                'make' => $car->make->name,
+                'model' => $car->model->name,
+                'status' => $car->status,
+            ],
+            'buyer_info' => [
+                'id' => $buyer->id,
+                'name' => $buyer->name,
+                'phone' => $buyer->phone,
+                'address' => $buyer->address,
+            ],
             'financial_summary' => [
                 'sale_price' => (float)$sale->sale_price,
                 'purchase_cost' => (float)$financialMetrics['purchase_cost'],
                 'profit_loss' => (float)$financialMetrics['profit_loss'],
-                'profit_margin' => $financialMetrics['profit_margin'],
+                'profit_margin' => round($financialMetrics['profit_margin'], 2),
                 'cost_breakdown' => [
                     'base_cost' => (float)$car->cost_price,
                     'transition_cost' => (float)($car->transition_cost ?? 0),
@@ -269,6 +278,11 @@ class IntegratedSalesService
                     'total_purchase_cost' => (float)$financialMetrics['purchase_cost'],
                 ],
                 'repair_items' => is_array($car->repair_items) ? $car->repair_items : json_decode($car->repair_items, true) ?? [],
+            ],
+            'sale_details' => [
+                'sale_date' => $sale->sale_date,
+                'notes' => $sale->notes,
+                'created_at' => $sale->created_at,
             ],
             'metadata' => [
                 'transaction_id' => $sale->id,

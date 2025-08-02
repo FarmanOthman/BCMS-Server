@@ -65,8 +65,8 @@ Route::prefix('bcms')->group(function () {
     // API resource for Buyers, accessible to Manager and User roles
     Route::apiResource('/buyers', BuyerController::class)->middleware(['role:Manager,User']);
 
-    // API resource for Sales, restricted to Managers
-    Route::apiResource('/sales', SaleController::class)->middleware(['role:Manager']);
+    // Sales are handled through the integrated sellCar endpoint
+    // Manual sales creation is not needed since sellCar handles the complete process
 
     // Report Routes - Restricted to Managers (or other appropriate roles)
     Route::prefix('reports')->middleware(['role:Manager'])->group(function () {
