@@ -40,14 +40,25 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
 
+        // DISABLED: Using observer-based automatic report generation instead of scheduled commands
+        // The SaleObserver and FinanceRecordObserver automatically generate/update reports
+        // when sales or finance records are created, updated, or deleted.
+        
         // Schedule the daily sales report to run daily at a specific time, e.g., 1:00 AM
-        $schedule->command('reports:generate-daily')->dailyAt('01:00');
+        // $schedule->command('reports:generate-daily')->dailyAt('01:00');
 
         // Schedule the monthly sales report to run on the 1st day of every month at 2:00 AM
-        $schedule->command('reports:generate-monthly')->monthlyOn(1, '02:00');
+        // $schedule->command('reports:generate-monthly')->monthlyOn(1, '02:00');
 
         // Schedule the yearly sales report to run on January 1st at 3:00 AM
-        $schedule->command('reports:generate-yearly')->yearlyOn(1, 1, '03:00');
+        // $schedule->command('reports:generate-yearly')->yearlyOn(1, 1, '03:00');
+        
+        // Note: Manual commands are still available for:
+        // - php artisan reports:generate-daily {date?}
+        // - php artisan reports:generate-monthly {year?} {month?}
+        // - php artisan reports:generate-yearly {year?}
+        // - php artisan reports:update-monthly-finance-costs
+        // - php artisan reports:check-missing
     }
 
     /**
